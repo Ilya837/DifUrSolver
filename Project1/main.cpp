@@ -82,7 +82,7 @@ void getMaxMin(double* arr, ui n, double& max, double& min) {
 
 void ex1(Methods m) {
 
-    double x0 = 0;
+    /*double x0 = 0;
     double x1 = 7;
     double h = 0.01;
 
@@ -94,7 +94,7 @@ void ex1(Methods m) {
     SolveDiffUrArr(x0, 0, x1, h, func, res, m);
     for (int i = 0; i < res.size(); i++) {
         std::cout <<x0+ h*i <<"  " << res[i] << "  " << realFunc(x0 + h*i) << std::endl;
-    }
+    }*/
 
     /*double* resx = new double[size * 3 - 1];
     double* resy = new double[size * 3 - 1];
@@ -316,7 +316,7 @@ void ex1(Methods m) {
 //}
 //
 void ex6(Methods m) {
-    std::vector<double> resX;
+    /*std::vector<double> resX;
     std::vector<double> resY;
     double t0 = 0, t1 = 0;
     double x0 = 0, x1 = 6, y0 = realFunc(x0);
@@ -328,7 +328,7 @@ void ex6(Methods m) {
     for (int i = 0; i < resX.size(); i++) {
         std::cout << "X: " << std::fixed << std::setprecision(6) << resX[i] << " result: " << std::fixed << std::setprecision(6) <<
             resY[i] << " real result " << std::fixed << std::setprecision(6) << realFunc(resX[i]) << std::endl;
-    }
+    }*/
 
 }
 
@@ -342,7 +342,7 @@ void ex6full() {
 }
 
 void ex7() {
-    std::vector<double> res;
+   /* std::vector<double> res;
     double t0 = 0, t1 = 0;
     double x0 = 1, x1 = 20, y0 = realFunc(x0), h = 0.01;
 
@@ -353,12 +353,12 @@ void ex7() {
     for (int i = 0; i < res.size(); i++) {
         std::cout << "X: " << std::fixed << std::setprecision(6) << x0 + i*h << " result: " << std::fixed << std::setprecision(6) <<
             res[i] << " real result " << std::fixed << std::setprecision(6) << realFunc(x0 + i * h) << std::endl;
-    }
+    }*/
 
 }
 
 void ex8() {
-    std::vector<double> res;
+    /*std::vector<double> res;
     std::vector<Methods> m;
     double t0 = 0, t1 = 0;
     double x0 = 1, x1 = 2, y0 = realFunc2(x0), h = 0.1;
@@ -370,7 +370,7 @@ void ex8() {
     for (int i = 0; i < res.size(); i++) {
         std::cout << "X: " << std::fixed << std::setprecision(6) << x0 + i * h << " result: " << std::fixed << std::setprecision(6) <<
             res[i] << " real result " << std::fixed << std::setprecision(6) << realFunc2(x0 + i * h) <<" Method: " << m[i] << std::endl;
-    }
+    }*/
 
 }
 
