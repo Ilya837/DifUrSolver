@@ -7,21 +7,32 @@ using System.Threading.Tasks;
 
 namespace DiffUrSolver
 {
-    internal class DiffUrSolver
+    public enum Methods
     {
+        Euler,
+        RK2,
+        RK4
+    }
+
+    [UnmanagedFunctionPointer(CallingConvention.Cdecl)]
+    public delegate double F1(double x, double y);
+
+    [UnmanagedFunctionPointer(CallingConvention.Cdecl)]
+    public delegate double F1System(double x, double[] y);
+
+    [UnmanagedFunctionPointer(CallingConvention.Cdecl)]
+    public delegate double StepF(double x0, double y0, double h, F1 f);
+
+    [UnmanagedFunctionPointer(CallingConvention.Cdecl)]
+    public delegate double F(double x);
+
+    public class DiffUrSolver
+    {
+        
+
         const string dllPath = "..\\..\\..\\..\\x64\\Release\\DiffUrSolverDLL.dll";
 
-        [UnmanagedFunctionPointer(CallingConvention.Cdecl)]
-        public delegate double F1(double x, double y);
-
-        [UnmanagedFunctionPointer(CallingConvention.Cdecl)]
-        public delegate double F1System(double x, double[] y);
-
-        [UnmanagedFunctionPointer(CallingConvention.Cdecl)]
-        public delegate double StepF(double x0, double y0, double h, F1 f);
-
-        [UnmanagedFunctionPointer(CallingConvention.Cdecl)]
-        public delegate double F(double x);
+        
 
         [DllImport(dllPath, CallingConvention = CallingConvention.Cdecl)]
         public static extern int SolveDiffUr(
@@ -63,6 +74,6 @@ namespace DiffUrSolver
 
         [DllImport(dllPath, CallingConvention = CallingConvention.Cdecl)]
         public static extern int SolveDiffUrSystemArr(double x0, double[] y0, double x1, uint n, double h, F1System[] f,
-            double[][] res, Methods method);
+            double[][] res, ref int resSize, Methods method);
     }
 }

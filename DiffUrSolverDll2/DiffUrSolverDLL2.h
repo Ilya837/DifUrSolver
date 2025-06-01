@@ -45,6 +45,6 @@ extern "C" {
 
     DIFFURSOLVERDLL_API int  SolveDiffUrSystem(double x0, double* y0, double x1, ui n, double h, F1System* f, double* res, Methods method);
 
-    DIFFURSOLVERDLL_API int  SolveDiffUrSystemArr(double x0, double* y0, double x1, ui n, double h, F1System* f, double** res, Methods method);
+    DIFFURSOLVERDLL_API int  SolveDiffUrSystemArr(double x0, double* y0, double x1, ui n, double h, F1System* f, double** res,int& resSize, Methods method);
 
 }
