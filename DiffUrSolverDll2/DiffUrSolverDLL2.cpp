@@ -14,9 +14,6 @@ double EulerStep(double x0, double y0, double h, F1 f)
 
 double RK2Step(double x0, double y0, double h, F1 f)
 {
-
-	//return h * f(x0 + h/2, y0 + h * f(x0,y0)/2);
-
 	double tmp = f(x0, y0);
 	return h * (tmp + f(x0 + h, y0 + h * tmp)) / 2;
 }
@@ -38,30 +35,14 @@ double RK4Step(double x0, double y0, double h, F1 f)
 	return h * sum / 6;
 }
 
-double AutoHStep(double x0, double y0, double& h, F1 f, StepF stepF, double p, double eps)
+double AutoHStep(double x0, double y0, double& h, F1 f, StepF stepF, double p, double eps, bool& more)
 {
 	double res1;
 	double res2;
 	double R;
 
-	double eps2;
-	bool isLowing = true;
+	double eps2 = eps / pow(2, p + 1);
 
-	eps2 = eps / 128;
-
-	res1 = stepF(x0, y0, h, f);
-	res2 = stepF(x0, y0, h / 2, f);
-	res2 += stepF(x0 + h / 2, y0 + res2, h / 2, f);
-	R = (res2 - res1) / (pow(2, p) - 1);
-	if (abs(R) > eps) {
-		h /= 2;
-		isLowing = true;
-	}
-	else if (abs(R) <= eps2) {
-		h *= 2;
-		isLowing = false;
-	}
-	else return res1;
 
 	while (true) {
 		res1 = stepF(x0, y0, h, f);
@@ -69,83 +50,24 @@ double AutoHStep(double x0, double y0, double& h, F1 f, StepF stepF, double p, d
 		res2 += stepF(x0 + h / 2, y0 + res2, h / 2, f);
 		R = (res2 - res1) / (pow(2, p) - 1);
 		if (abs(R) > eps) {
-			if (!isLowing) break;
 			h /= 2;
 		}
 		else if (abs(R) <= eps2) {
-			if (isLowing) break;
-			h *= 2;
+			more = true;
+			return res1;
 		}
 		else break;
 	}
 
+	more = false;
 	return res1;
 }
 
-double AutoMethodStep(double x0, double y0, double h, F1 f, double eps,Methods& method)
+double AutoMethodStep(double x0, double y0, double h, F1 f, double eps,bool& lessMethod,Methods& method)
 {
 	double res1;
 	double res2;
-	bool isLowing = true;
-
-	double k = 512;
-
-	
-
-	switch (method)
-	{
-		case Euler: {
-			res1 = EulerStep(x0, y0, h, f);
-			res2 = RK2Step(x0, y0, h, f);
-
-			if (abs(res2 - res1) > eps) { // условие повышения точности
-				method = RK2;
-				isLowing = false;
-			}
-			else {
-				return res1;
-			}
-
-			break;
-		}
-		case RK2: {
-			res1 = RK2Step(x0, y0, h, f);
-			res2 = RK4Step(x0, y0, h, f);
-
-			if (abs(res2 - res1) < eps / k) { // условие понижения точности
-				method = Euler;
-				isLowing = true;
-			}
-			else if (abs(res2 - res1) / 3 > eps) { // условие повышения точности
-				method = RK4;
-				isLowing = false;
-			}
-			else {
-				return res1;
-			}
-
-			break;
-		}
-		case RK4: {
-			res1 = RK4Step(x0, y0, h, f);
-			res2 = RK2Step(x0, y0, h, f);
-			if (abs(res2 - res1) < eps / k) { // условие понижения точности
-				method = RK2;
-				isLowing = true;
-			}
-			else {
-				return res1;
-			}
-			break;
-
-		}
-		default:
-			return -1;
-			break;
-	}
-
-	
-
+	double res0;
 
 	while (true) {
 
@@ -156,7 +78,6 @@ double AutoMethodStep(double x0, double y0, double h, F1 f, double eps,Methods& 
 				res2 = RK2Step(x0, y0, h, f);
 
 				if (abs(res2 - res1) > eps) { // условие повышения точности
-					if (isLowing) return res1;
 					method = RK2;
 					continue;
 				}
@@ -167,16 +88,15 @@ double AutoMethodStep(double x0, double y0, double h, F1 f, double eps,Methods& 
 				break;
 			}
 			case RK2: {
+				res0 = EulerStep(x0, y0, h, f);
 				res1 = RK2Step(x0, y0, h, f);
 				res2 = RK4Step(x0, y0, h, f);
 
-				if (abs(res2 - res1) < eps / k) { // условие понижения точности
-					if (!isLowing) return res1;
-					method = Euler;
-					continue;
+				if (abs(res1 - res0) < eps / pow(2,2 + 1)) { // условие понижения точности
+					lessMethod = true;
+					return res1;
 				}
-				else if (abs(res2 - res1) / 3 > eps) { // условие повышения точности
-					if (isLowing) return res1;
+				else if (abs(res2 - res1) > eps) { // условие повышения точности
 					method = RK4;
 					continue;
 				}
@@ -189,9 +109,9 @@ double AutoMethodStep(double x0, double y0, double h, F1 f, double eps,Methods& 
 			case RK4: {
 				res1 = RK4Step(x0, y0, h, f);
 				res2 = RK2Step(x0, y0, h, f);
-				if (abs(res2 - res1) < eps / k) { // условие понижения точности
-					if (!isLowing) return res1;
-					method = RK2;
+				if (abs(res2 - res1) < eps / pow(2,4+1)) { // условие понижения точности
+					lessMethod = true;
+					return res1;
 					continue;
 				}
 				else {
@@ -278,7 +198,8 @@ void RK4SystemStep(double x0, double* y0, double* yres, double* ytmp, double* yt
 
 extern "C" {
 	
-	DIFFURSOLVERDLL_API int SolveDiffUr(double x0, double y0, double x1, double h, F1 f, double& res, Methods method)
+	DIFFURSOLVERDLL_API int SolveDiffUr(double x0, double y0, double x1,
+		double h, F1 f, double& res, Methods method)
 	{
 		double(*stepF)(double x0, double y0, double h, F1 f);
 
@@ -308,7 +229,8 @@ extern "C" {
 		return 0;
 	}
 
-	DIFFURSOLVERDLL_API int SolveDiffUrAutoH(double x0, double y0, double x1, double h, double eps, F1 f, double& res, Methods method)
+	DIFFURSOLVERDLL_API int SolveDiffUrAutoH(double x0, double y0, double x1, double h,
+		double eps, F1 f, double& res, Methods method)
 	{
 		StepF stepF;
 		double p;
@@ -333,8 +255,10 @@ extern "C" {
 		}
 		int i = 0;
 		while (true) {
-			double tmp = AutoHStep(x0, y0, h, f, stepF, p, eps);
-			if (x0 + h > x1) {
+			bool more = false;
+			double tmp = AutoHStep(x0, y0, h, f, stepF, p, eps, more);
+
+			if ((x0 + h > x1)) {
 				if ((x0 + h - x1) < eps) {
 					res = y0 + tmp;
 					break;
@@ -355,12 +279,12 @@ extern "C" {
 					return -1;
 					break;
 				}
-
 				break;
 			}
 
-			y0 += tmp;
 			x0 += h;
+			if (more) h *= 2;
+			y0 += tmp;
 		}
 
 		return 0;
@@ -394,12 +318,14 @@ extern "C" {
 		resX[i] =x0;
 		resY[i] =y0;
 		while (true) {
-			double tmp = AutoHStep(x0, y0, h, f, stepF, p, eps);
-			if (x0 + h > x1) {
+			bool more = false;
+			double tmp = AutoHStep(x0, y0, h, f, stepF, p, eps, more);
+			if ((x0 + h > x1)) {
 				i++;
+
 				if ((x0 + h - x1) < eps) {
 					resX[i] = x0 + h;
-					resY[i] =y0 + tmp;
+					resY[i] = y0 + tmp;
 					resSize = i + 1;
 					return 0;
 				}
@@ -429,7 +355,12 @@ extern "C" {
 			}
 
 			y0 += tmp;
+
+			
 			x0 += h;
+
+			if (more) h *= 2;
+
 			i++;
 			resX[i] =x0;
 			resY[i] =y0;
@@ -444,12 +375,29 @@ extern "C" {
 	{
 		int i = 0;
 		double realx0 = x0;
+		bool lessMethod = false;
 		while (x0 + h < x1) {
-			y0 +=AutoMethodStep(x0,y0,h,f,eps,method);
+			lessMethod = false;
+			y0 +=AutoMethodStep(x0,y0,h,f,eps,lessMethod, method);
+			if (lessMethod) {
+				switch (method)
+				{
+				case Euler:
+					break;
+				case RK2:
+					method = Euler;
+					break;
+				case RK4:
+					method = RK2;
+					break;
+				default:
+					break;
+				}
+			}
 			i++;
 			x0 = realx0 + i * h;
 		}
-		res = y0 + AutoMethodStep(x0, y0, x1-x0, f, eps, method);
+		res = y0 + AutoMethodStep(x0, y0, x1-x0, f, eps, lessMethod, method);
 		return 0;
 	}
 
@@ -458,18 +406,34 @@ extern "C" {
 
 		int i = 0;
 		double realx0 = x0;
+		bool lessMethod = false;
 
 		res[i] =y0;
 
 		while (x0 + h < x1) {
-			y0 += AutoMethodStep(x0, y0, h, f, eps, method);
-			
+			lessMethod = false;
+			y0 += AutoMethodStep(x0, y0, h, f, eps, lessMethod, method);
+			if (lessMethod) {
+				switch (method)
+				{
+				case Euler:
+					break;
+				case RK2:
+					method = Euler;
+					break;
+				case RK4:
+					method = RK2;
+					break;
+				default:
+					break;
+				}
+			}
 			i++;
 			res[i] = y0;
 			x0 = realx0 + i * h;
 		}
 		i++;
-		res[i] =y0 + AutoMethodStep(x0, y0, x1 - x0, f, eps, method);
+		res[i] =y0 + AutoMethodStep(x0, y0, x1 - x0, f, eps, lessMethod, method);
 		sizeRes = i + 1;
 		return 0;
 	}
@@ -482,17 +446,35 @@ extern "C" {
 
 		res[i] =y0;
 		methodsArr[i]=method;
-
+		bool lessMethod = false;
 		while (x0 + h < x1) {
-			y0 += AutoMethodStep(x0, y0, h, f, eps, method);
+			lessMethod = false;
+			y0 += AutoMethodStep(x0, y0, h, f, eps, lessMethod, method);
 			i++;
 			res[i] = y0;
 			methodsArr[i] = method;
+
+
+			if (lessMethod) {
+				switch (method)
+				{
+				case Euler:
+					break;
+				case RK2:
+					method = Euler;
+					break;
+				case RK4:
+					method = RK2;
+					break;
+				default:
+					break;
+				}
+			}
 			
 			x0 = realx0 + i * h;
 		}
 		i++;
-		res[i] = y0 + AutoMethodStep(x0, y0, x1 - x0, f, eps, method);
+		res[i] = y0 + AutoMethodStep(x0, y0, x1 - x0, f, eps,lessMethod, method);
 		methodsArr[i] = method;
 		sizeRes = i + 1;
 		return 0;
@@ -536,7 +518,8 @@ extern "C" {
 		return 0;
 	}
 
-	DIFFURSOLVERDLL_API int SolveDiffUrSystem(double x0, double* y0, double x1, ui n, double h, F1System* f, double* res, Methods method)
+	DIFFURSOLVERDLL_API int SolveDiffUrSystem(double x0, double* y0, double x1, ui n,
+		double h, F1System* f, double* res, Methods method)
 	{
 		double* ystep = new double[n];
 		double* ytmp = new double[n];
@@ -602,7 +585,7 @@ extern "C" {
 		return 0;
 	}
 
-	DIFFURSOLVERDLL_API int SolveDiffUrSystemArr(double x0, double* y0, double x1, ui n, double h, F1System* f, double** res, int& resSize, Methods method)
+	DIFFURSOLVERDLL_API int SolveDiffUrSystemArr(double x0, double* y0, double x1, ui n, double h, F1System* f, double* res, int& resSize, Methods method)
 	{
 		double* ystep = new double[n];
 		double* ytmp = new double[n];
@@ -610,6 +593,13 @@ extern "C" {
 
 		int k = 0;
 		double realx0 = 0;
+
+		for (int i = 0; i < n; i++) {
+			res[k*n +i] = y0[i];
+			
+		}
+		k++;
+
 		switch (method)
 		{
 		case Euler:
@@ -617,8 +607,9 @@ extern "C" {
 
 				EulerSystemStep(x0, y0, ystep, n, h, f);
 				for (ui i = 0; i < n; i++) {
-					res[k][i] = y0[i];
+					
 					y0[i] += ystep[i];
+					res[k*n +i] = y0[i];
 				}
 
 				k++;
@@ -627,16 +618,16 @@ extern "C" {
 
 			EulerSystemStep(x0, y0, ystep, n, x1 - x0, f);
 			for (ui i = 0; i < n; i++) {
-				res[k][i] = y0[i];
-				res[k + 1][i] = y0[i] + ystep[i];
+				res[k*n +i] = y0[i] + ystep[i];
 			}
 			break;
 		case RK2:
 			while (x0 + h + 0.00000001 < x1) {
 				RK2SystemStep(x0, y0, ystep, ytmp, n, h, f);
 				for (ui i = 0; i < n; i++) {
-					res[k][i] = y0[i];
+					
 					y0[i] += ystep[i];
+					res[k*n +i] = y0[i];
 				}
 				k++;
 				x0 = realx0 + h * k;
@@ -645,16 +636,16 @@ extern "C" {
 
 			RK2SystemStep(x0, y0, ystep, ytmp, n, x1 - x0, f);
 			for (ui i = 0; i < n; i++) {
-				res[k][i] = y0[i];
-				res[k + 1][i] = y0[i] + ystep[i];
+				res[k*n +i] = y0[i] + ystep[i];
 			}
 			break;
 		case RK4:
 			while (x0 + h + 0.00000001 < x1) {
 				RK4SystemStep(x0, y0, ystep, ytmp, ytmp2, n, h, f);
 				for (ui i = 0; i < n; i++) {
-					res[k][i] = y0[i];
+					
 					y0[i] += ystep[i];
+					res[k*n +i] = y0[i];
 				}
 
 				k++;
@@ -663,8 +654,7 @@ extern "C" {
 
 			RK4SystemStep(x0, y0, ystep, ytmp, ytmp2, n, x1 - x0, f);
 			for (ui i = 0; i < n; i++) {
-				res[k][i] = y0[i];
-				res[k + 1][i] = y0[i] + ystep[i];
+				res[k* n +i] = y0[i] + ystep[i];
 			}
 			break;
 		default:

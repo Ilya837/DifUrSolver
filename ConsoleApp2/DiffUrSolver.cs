@@ -18,7 +18,7 @@ namespace DiffUrSolver
     public delegate double F1(double x, double y);
 
     [UnmanagedFunctionPointer(CallingConvention.Cdecl)]
-    public delegate double F1System(double x, double[] y);
+    public delegate double F1System(double x, IntPtr y);
 
     [UnmanagedFunctionPointer(CallingConvention.Cdecl)]
     public delegate double StepF(double x0, double y0, double h, F1 f);
@@ -28,11 +28,7 @@ namespace DiffUrSolver
 
     public class DiffUrSolver
     {
-        
-
         const string dllPath = "..\\..\\..\\..\\x64\\Release\\DiffUrSolverDLL.dll";
-
-        
 
         [DllImport(dllPath, CallingConvention = CallingConvention.Cdecl)]
         public static extern int SolveDiffUr(
@@ -66,14 +62,14 @@ namespace DiffUrSolver
 
         [DllImport(dllPath, CallingConvention = CallingConvention.Cdecl)]
         public static extern int SolveDiffUrArr(double x0, double y0, double x1, double h, F1 f,
-            double[] res, ref int sizeRes, Methods method);
+             double[] res, ref int sizeRes, Methods method);
 
         [DllImport(dllPath, CallingConvention = CallingConvention.Cdecl)]
-        public static extern int SolveDiffUrSystem(double x0, double[] y0, double x1, uint n, double h, F1System[] f,
-            double[] res, Methods method);
+        public static extern int SolveDiffUrSystem(double x0, double[] y0, double x1, uint n, double h, IntPtr f,
+             double[] res, Methods method);
 
         [DllImport(dllPath, CallingConvention = CallingConvention.Cdecl)]
-        public static extern int SolveDiffUrSystemArr(double x0, double[] y0, double x1, uint n, double h, F1System[] f,
-            double[][] res, ref int resSize, Methods method);
+        public static extern int SolveDiffUrSystemArr(double x0, double[] y0, double x1, uint n, double h, IntPtr f,
+            double[] res, ref int resSize, Methods method);
     }
 }

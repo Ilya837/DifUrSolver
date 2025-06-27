@@ -71,7 +71,7 @@ class Program
 
         // Решение ОДУ методом Эйлера
         DiffUrSolver.F1 func = func1;
-        DiffUrSolver.F1System f1System = SampleFunction2;
+        //DiffUrSolver.F1System f1System = SampleFunction2;
         DiffUrSolver.StepF stepF = SampleFunction3;
         DiffUrSolver.F f = SampleFunction4;
 
@@ -151,26 +151,26 @@ class Program
             }
         }
 
-        Console.WriteLine("                  |    Global error     |   Local error");
+        Console.WriteLine("          |    Global error     |   Local error");
 
-        Console.WriteLine(" h = {0:F10} |     {1:F10}    |   {2:F10}",h, globalError1, localError1);
+        Console.WriteLine(" h = {0:F2} |     {1:F10}    |   {2:F10}",h, globalError1, localError1);
 
-        Console.WriteLine(" h = {0:F10} |     {1:F10}    |   {2:F10}", h/2, globalError2, localError2);
+        Console.WriteLine(" h = {0:F2} |     {1:F10}    |   {2:F10}", h/2, globalError2, localError2);
 
-        Console.WriteLine("                  |     h^{0:F10}  | h^{1:F10}", Math.Log2( globalError1/globalError2) ,Math.Log2(localError1 / localError2) );
+        Console.WriteLine("          |     h^{0:F10}  | h^{1:F10}", Math.Log2( globalError1/globalError2) ,Math.Log2(localError1 / localError2) );
 
 
     }
 
     static void FullTestMethodsEps(DiffUrSolver.F1 func, DiffUrSolver.F realFunc)
     {
-        Console.WriteLine("                         Euler");
+        Console.WriteLine("                      Euler");
         TestMethodsEps(func,realFunc,DiffUrSolver.Methods.Euler);
         Console.WriteLine();
-        Console.WriteLine("                          RK2");
+        Console.WriteLine("                       RK2");
         TestMethodsEps(func, realFunc, DiffUrSolver.Methods.RK2);
         Console.WriteLine();
-        Console.WriteLine("                          RK4");
+        Console.WriteLine("                       RK4");
         TestMethodsEps(func, realFunc, DiffUrSolver.Methods.RK4);
         Console.WriteLine();
     }
@@ -178,6 +178,8 @@ class Program
     {
         //experiment1(Methods.RK4);
         //experiment2(DiffUrSolver.Methods.RK4);\
+
+        //FullTestMethodsEps(func1,realFunc1);
 
         FullTestMethodsEps(func1,realFunc1);
     }

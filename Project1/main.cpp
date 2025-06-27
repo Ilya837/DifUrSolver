@@ -374,7 +374,37 @@ void ex8() {
 
 }
 
+double systemf1(double x, double*y) {
+    return  y[0] - 5 * y[1];
+}
+double systemf2(double x, double* y) {
+    return 5 * y[0] + y[1];
+}
 
+void ex9(Methods m) {
+
+    double x0 = 0, x1 = 4;
+    double* y0 = new double[2];
+    y0[0] = y0[1] = 1;
+
+    int resSize = 0;
+    ui n = 2;
+    
+
+    F1System* system = new F1System[2];
+    system[0] = systemf1;
+    system[1] = systemf2;
+
+    double* res = new double[20000000];
+    
+
+
+    SolveDiffUrSystemArr(x0, y0, x1, n, 0.0001, system, res, resSize, m);
+
+    for (int i = 0; i < 2; i++) {
+        std::cout << res[resSize* n +i] << std::endl;
+    }
+}
 
 int main()
 {
@@ -384,7 +414,7 @@ int main()
     //ex3(Euler);
     //ex4();
     //ex6full();
-    ex8();
+    ex9(RK4);
 
 
 
