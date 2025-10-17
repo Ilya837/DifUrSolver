@@ -19,32 +19,57 @@ enum Methods
 
 
 extern "C" {
+
+   
     
     typedef double(__cdecl* F1)(double x, double y);
 
-    typedef double(__cdecl* F1System)(double x, double* y);
+    typedef double(__cdecl* F1System)(double x,const double* y);
 
     typedef double(__cdecl* StepF)(double x0, double y0, double h, F1 f);
 
     typedef double(__cdecl* F)(double x);
 
-    DIFFURSOLVERDLL_API int SolveDiffUr(double x0, double y0, double x1, double h, F1 f, double& res, Methods method);
+    struct Task {
+        double x0;
+        double x1;
+        double y0;
+        ui n;
+        double h;
+        F1* f;
+        Methods method;
 
-    DIFFURSOLVERDLL_API int  SolveDiffUrAutoH(double x0, double y0, double x1, double h, double eps, F1 f, double& res, Methods method);
+    };
 
-    DIFFURSOLVERDLL_API int  SolveDiffUrAutoHArr(double x0, double y0, double x1, double h, double eps, F1 f, double* resX, double* resY,int& resSize, Methods method);
+    struct SystemTask {
+        double t0;
+        double t1;
+        double* y0;
+        ui n;
+        double h;
+        F1System* f;
+        Methods method;
 
-    DIFFURSOLVERDLL_API int  SolveDiffUrAutoMethod(double x0, double y0, double x1, double h, double eps, F1 f, double& res, Methods method);
+    };
 
-    DIFFURSOLVERDLL_API int  SolveDiffUrAutoMethodArr(double x0, double y0, double x1, double h, double eps, F1 f, double* res,int& sizeRes, Methods method);
+    DIFFURSOLVERDLL_API int SolveDiffUr(const Task& task, double& res);
 
-    DIFFURSOLVERDLL_API int  SolveDiffUrAutoMethodArr2(double x0, double y0, double x1, double h, double eps, F1 f, double* res, int& sizeRes, Methods* methodsArr, Methods method);
+    DIFFURSOLVERDLL_API int  SolveDiffUrArr(const Task& task, double* res);
 
+    DIFFURSOLVERDLL_API int  SolveDiffUrAutoH(const Task& task, double eps, double& res);
 
-    DIFFURSOLVERDLL_API int  SolveDiffUrArr(double x0, double y0, double x1, double h, F1 f, double* res, int& sizeRes, Methods method);
+    DIFFURSOLVERDLL_API int  SolveDiffUrAutoHArr(const Task& task, double eps, double* resX, double* resY,int& resSize);
 
-    DIFFURSOLVERDLL_API int  SolveDiffUrSystem(double x0, double* y0, double x1, ui n, double h, F1System* f, double* res, Methods method);
+    DIFFURSOLVERDLL_API int  SolveDiffUrAutoMethod(const Task& task, double eps, double& res);
 
-    DIFFURSOLVERDLL_API int  SolveDiffUrSystemArr(double x0, double* y0, double x1, ui n, double h, F1System* f, double* res,int& resSize, Methods method);
+    DIFFURSOLVERDLL_API int  SolveDiffUrAutoMethodArr(const Task& task, double eps, double* res);
+
+    DIFFURSOLVERDLL_API int  SolveDiffUrAutoMethodArr2(const Task& task, double eps, double* res, Methods* methodsArr);
+
+    DIFFURSOLVERDLL_API int  SolveDiffUrSystem(const SystemTask &task, double* res);
+
+    DIFFURSOLVERDLL_API int  SolveDiffUrSystemArr(const SystemTask& task, double* res);
+
+    
 
 }

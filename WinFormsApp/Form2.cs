@@ -272,8 +272,8 @@ namespace WinFormsApp
 
             GCHandle functionsArrayHandle = GCHandle.Alloc(functionPointers, GCHandleType.Pinned);
 
-            int status = DiffUrSolver.DiffUrSolver.SolveDiffUrSystemArr(x0, y0, x1,n, h, functionsArrayHandle.AddrOfPinnedObject(),
-                 resultY,ref resultSize, method);
+            //int status = DiffUrSolver.DiffUrSolver.SolveDiffUrSystemArr(x0, y0, x1,n, h, functionsArrayHandle.AddrOfPinnedObject(),
+            //     resultY,ref resultSize, method);
 
             int k = 0;
             while(x0 +k*h + 0.0000001 < x1)

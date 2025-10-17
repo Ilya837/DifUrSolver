@@ -174,6 +174,157 @@ class Program
         TestMethodsEps(func, realFunc, DiffUrSolver.Methods.RK4);
         Console.WriteLine();
     }
+
+    public static double SystemFunctionSingle(double x, IntPtr y)
+    {
+
+        double[] array = new double[1];
+        Marshal.Copy(y, array, 0, 1);
+
+
+        return Math.Cos(array[0]);
+    }
+    public static double SystemFunction1(double x, IntPtr y)
+    {
+
+        double[] array = new double[2];
+        Marshal.Copy(y, array, 0, 2);
+
+
+        return array[0] - 5 * array[1];
+    }
+
+    public static double SystemFunction2(double x, IntPtr y)
+    {
+        double[] array = new double[2];
+        Marshal.Copy(y, array, 0, 2);
+
+        return 5 * array[0] + array[1];
+    }
+
+    public static double RealSystemFunction1(double x)
+    {
+        return Math.Pow(Math.E, x) * (Math.Sin(-5 * x) + Math.Cos(-5 * x));
+    }
+
+    public static double RealSystemFunction2(double x)
+    {
+        return Math.Pow(Math.E, x) * (Math.Sin(5 * x) + Math.Cos(5 * x));
+    }
+
+    static void experiment3(DiffUrSolver.Methods method)
+    {
+        DiffUrSolver.Task task = new DiffUrSolver.Task();
+
+        task.t0 = 0;
+        task.t1 = 4.0;
+        task.h = 0.001;
+        task.method = method;
+        task.n = 2;
+
+        double[] y0 = new double[6];
+        y0[0] = 1;
+        y0[1] = 1;
+
+        int size = Marshal.SizeOf(typeof(double)) * y0.Length;
+        IntPtr y0Ptr = Marshal.AllocHGlobal(size);
+        Marshal.Copy(y0, 0, y0Ptr, y0.Length);
+
+        task.y0 = y0Ptr;
+
+
+        double[] resultY = new double[task.n];
+
+        // Создаём массив IntPtr для хранения указателей на делегаты
+        IntPtr[] functionPointers = new IntPtr[2];
+
+        // Фиксируем делегаты в памяти, чтобы GC не перемещал их
+        GCHandle[] handles = new GCHandle[2];
+
+        F1System[] system = new F1System[2];
+
+        system[0] = SystemFunction1;
+        system[1] = SystemFunction2;
+
+        for (int i = 0; i < system.Length; i++)
+        {
+            handles[i] = GCHandle.Alloc(system[i]);
+            functionPointers[i] = Marshal.GetFunctionPointerForDelegate(system[i]);
+        }
+
+
+        GCHandle functionsArrayHandle = GCHandle.Alloc(functionPointers, GCHandleType.Pinned);
+
+        task.f = functionsArrayHandle.AddrOfPinnedObject();
+
+
+        DiffUrSolver.DiffUrSolver.SolveDiffUrSystem(task, resultY);
+
+        for (int i = 0; i < task.n; i++)
+        {
+            Console.WriteLine(resultY[i]);
+        }
+
+        Console.WriteLine(RealSystemFunction1(task.t1));
+        Console.WriteLine(RealSystemFunction2(task.t1));
+
+    }
+    static void experiment4(DiffUrSolver.Methods method)
+    {
+        DiffUrSolver.Task task = new DiffUrSolver.Task();
+
+        task.t0 = 0;
+        task.t1 = 2.0;
+        task.h = 0.001;
+        task.method = method;
+        task.n = 1;
+
+        double[] y0 = new double[1];
+        y0[0] = 0;
+        //y0[1] = 1;
+
+        int size = Marshal.SizeOf(typeof(double)) * y0.Length;
+        IntPtr y0Ptr = Marshal.AllocHGlobal(size);
+        Marshal.Copy(y0, 0, y0Ptr, y0.Length);
+
+        task.y0 = y0Ptr;
+
+
+        double[] resultY = new double[task.n];
+
+        // Создаём массив IntPtr для хранения указателей на делегаты
+        IntPtr[] functionPointers = new IntPtr[task.n];
+
+        // Фиксируем делегаты в памяти, чтобы GC не перемещал их
+        GCHandle[] handles = new GCHandle[task.n];
+
+        F1System[] system = new F1System[task.n];
+
+        system[0] = SystemFunctionSingle;
+        //system[1] = SystemFunction2;
+
+        for (int i = 0; i < system.Length; i++)
+        {
+            handles[i] = GCHandle.Alloc(system[i]);
+            functionPointers[i] = Marshal.GetFunctionPointerForDelegate(system[i]);
+        }
+
+
+        GCHandle functionsArrayHandle = GCHandle.Alloc(functionPointers, GCHandleType.Pinned);
+
+        task.f = functionsArrayHandle.AddrOfPinnedObject();
+
+
+        DiffUrSolver.DiffUrSolver.SolveDiffUrSystem(task, resultY);
+
+        for (int i = 0; i < task.n; i++)
+        {
+            Console.WriteLine(resultY[i]);
+        }
+
+        Console.WriteLine(realFunc1(task.t1));
+
+    }
     static void Main(string[] args)
     {
         //experiment1(Methods.RK4);
@@ -181,6 +332,10 @@ class Program
 
         //FullTestMethodsEps(func1,realFunc1);
 
-        FullTestMethodsEps(func1,realFunc1);
+        //FullTestMethodsEps(func1,realFunc1);
+
+        experiment4(Methods.Euler);
+
+        
     }
 }

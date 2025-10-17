@@ -35,7 +35,7 @@ double RK4Step(double x0, double y0, double h, F1 f)
 	return h * sum / 6;
 }
 
-double AutoHStep(double x0, double y0, double& h, F1 f, StepF stepF, double p, double eps, bool& more)
+double AutoHStep(double x0, double y0,double& h, F1 f, StepF stepF, double p, double eps, bool& more)
 {
 	double res1;
 	double res2;
@@ -128,41 +128,35 @@ double AutoMethodStep(double x0, double y0, double h, F1 f, double eps,bool& les
 }
 
 
-void EulerSystemStep(double x0, double* y0, double* yres, ui n, double h, F1System* f)
+void EulerSystemStep(double x0, double* y0, double* yStep, ui n, double h, F1System* f)
 {
 	for (ui i = 0; i < n; i++) {
-		yres[i] = h * f[i](x0, y0);
+		yStep[i] = h * f[i](x0, y0);
 	}
 }
 
-void RK2SystemStep(double x0, double* y0, double* yres, double* ytmp, ui n, double h, F1System* f)
+void RK2SystemStep(double x0,const double* y0, double* yStep, double* ytmp, ui n, double h, F1System* f)
 {
 
 	for (ui i = 0; i < n; i++) {
-		ytmp[i] = f[i](x0, y0);
+		yStep[i] = f[i](x0, y0);
 	}
 
 	for (ui i = 0; i < n; i++) {
-		y0[i] += h * ytmp[i];
+		ytmp[i] = y0[i] + h * yStep[i];
+		
 	}
 
 	for (ui i = 0; i < n; i++) {
-		yres[i] = h * (ytmp[i] + f[i](x0 + h, y0)) / 2;
-	}
-
-	for (ui i = 0; i < n; i++) {
-		y0[i] -= h * ytmp[i];
+		yStep[i] = h * (yStep[i] + f[i](x0 + h, ytmp)) / 2;
 	}
 }
 
-void RK4SystemStep(double x0, double* y0, double* yres, double* ytmp, double* ytmp2, ui n, double h, F1System* f) {
+void RK4SystemStep(double x0,const double* y0, double* yStep, double* ytmp, double* ytmp2, ui n, double h, F1System* f) {
 
+	
 	for (ui i = 0; i < n; i++) {
-		yres[i] = 0;
-	}
-
-	for (ui i = 0; i < n; i++) {
-		yres[i] += ytmp[i] = f[i](x0, y0);
+		yStep[i] = ytmp[i] = f[i](x0, y0);
 	}
 
 	for (ui i = 0; i < n; i++) {
@@ -170,7 +164,7 @@ void RK4SystemStep(double x0, double* y0, double* yres, double* ytmp, double* yt
 	}
 
 	for (ui i = 0; i < n; i++) {
-		yres[i] += 2 * (ytmp[i] = f[i](x0 + h / 2, ytmp2));
+		yStep[i] += 2 * (ytmp[i] = f[i](x0 + h / 2, ytmp2));
 	}
 
 	for (ui i = 0; i < n; i++) {
@@ -178,7 +172,7 @@ void RK4SystemStep(double x0, double* y0, double* yres, double* ytmp, double* yt
 	}
 
 	for (ui i = 0; i < n; i++) {
-		yres[i] += 2 * (ytmp[i] = f[i](x0 + h / 2, ytmp2));
+		yStep[i] += 2 * (ytmp[i] = f[i](x0 + h / 2, ytmp2));
 	}
 
 	for (ui i = 0; i < n; i++) {
@@ -186,8 +180,8 @@ void RK4SystemStep(double x0, double* y0, double* yres, double* ytmp, double* yt
 	}
 
 	for (ui i = 0; i < n; i++) {
-		yres[i] += f[i](x0 + h, ytmp2);
-		yres[i] = yres[i] * h / 6;
+		yStep[i] += f[i](x0 + h, ytmp2);
+		yStep[i] = yStep[i] * h / 6;
 	}
 
 }
@@ -198,12 +192,11 @@ void RK4SystemStep(double x0, double* y0, double* yres, double* ytmp, double* yt
 
 extern "C" {
 	
-	DIFFURSOLVERDLL_API int SolveDiffUr(double x0, double y0, double x1,
-		double h, F1 f, double& res, Methods method)
+	DIFFURSOLVERDLL_API int SolveDiffUr(const Task& task, double& res)
 	{
 		double(*stepF)(double x0, double y0, double h, F1 f);
 
-		switch (method)
+		switch (task.method)
 		{
 		case Euler:
 			stepF = &EulerStep;
@@ -219,26 +212,27 @@ extern "C" {
 			break;
 		}
 		int i = 0;
-		double realx0 = x0;
-		while (x0 + h < x1) {
-			y0 += stepF(x0, y0, h, f);
+		double xNow = task.x0;
+		res = task.y0;
+
+		while (task.x0 + task.h < task.x1) {
+			res += stepF(xNow, res, task.h, (*task.f));
 			i++;
-			x0 = realx0 + i * h;
+			xNow = task.x0 + i * task.h;
 		}
-		res = y0 + stepF(x0, y0, x1 - x0, f);
+		res += stepF(xNow, res, task.x1 - xNow, (*task.f));
 		return 0;
 	}
 
-	DIFFURSOLVERDLL_API int SolveDiffUrAutoH(double x0, double y0, double x1, double h,
-		double eps, F1 f, double& res, Methods method)
+	DIFFURSOLVERDLL_API int SolveDiffUrAutoH(const Task& task, double eps, double& res)
 	{
 		StepF stepF;
 		double p;
 
-		switch (method)
+		switch (task.method)
 		{
 		case Euler:
-			stepF =EulerStep;
+			stepF = EulerStep;
 			p = 1;
 			break;
 		case RK2:
@@ -254,26 +248,29 @@ extern "C" {
 			break;
 		}
 		int i = 0;
+		res = task.y0;
+		double xNow = task.x0;
+		double hNow = task.h;
 		while (true) {
 			bool more = false;
-			double tmp = AutoHStep(x0, y0, h, f, stepF, p, eps, more);
+			double tmp = AutoHStep(xNow, res, hNow, *task.f, stepF, p, eps, more);
 
-			if ((x0 + h > x1)) {
-				if ((x0 + h - x1) < eps) {
-					res = y0 + tmp;
+			if ((xNow + hNow > task.x1)) {
+				if ((xNow + hNow - task.x1) < eps) {
+					res += tmp;
 					break;
 				}
 
-				switch (method)
+				switch (task.method)
 				{
 				case Euler:
-					res = y0 + EulerStep(x0, y0, x1 - x0, f);
+					res += EulerStep(xNow, res, task.x1 - xNow, *task.f);
 					break;
 				case RK2:
-					res = y0 + RK2Step(x0, y0, x1 - x0, f);
+					res += RK2Step(xNow, res, task.x1 - xNow, *task.f);
 					break;
 				case RK4:
-					res = y0 + RK4Step(x0, y0, x1 - x0, f);
+					res += RK4Step(xNow, res, task.x1 - xNow, *task.f);
 					break;
 				default:
 					return -1;
@@ -282,21 +279,21 @@ extern "C" {
 				break;
 			}
 
-			x0 += h;
-			if (more) h *= 2;
-			y0 += tmp;
+			xNow += hNow;
+			if (more) hNow *= 2;
+			res += tmp;
 		}
 
 		return 0;
 	}
 
-	DIFFURSOLVERDLL_API int SolveDiffUrAutoHArr(double x0, double y0, double x1, double h, double eps, F1 f, double* resX, double* resY,int& resSize, Methods method)
+	DIFFURSOLVERDLL_API int SolveDiffUrAutoHArr(const Task& task, double eps, double* resX, double* resY, int& resSize)
 	{
 
 		StepF stepF;
 		double p;
 
-		switch (method)
+		switch (task.method)
 		{
 		case Euler:
 			stepF =EulerStep;
@@ -315,55 +312,54 @@ extern "C" {
 			break;
 		}
 		int i = 0;
-		resX[i] =x0;
-		resY[i] =y0;
+		double hNow = task.h;
+		resX[i] =task.x0;
+		resY[i] =task.y0;
 		while (true) {
 			bool more = false;
-			double tmp = AutoHStep(x0, y0, h, f, stepF, p, eps, more);
-			if ((x0 + h > x1)) {
-				i++;
+			double tmp = AutoHStep(resX[i], resY[i], hNow, *task.f, stepF, p, eps, more);
+			if ((resX[i] + hNow > task.x1)) {
+				
 
-				if ((x0 + h - x1) < eps) {
-					resX[i] = x0 + h;
-					resY[i] = y0 + tmp;
+				if ((resX[i] + hNow - task.x1) < eps) {
+					i++;
+					resX[i] = resX[i-1] + hNow;
+					resY[i] = resY[i-1] + tmp;
 					resSize = i + 1;
 					return 0;
 				}
 
 				double LastRes = 0;
 
-				switch (method)
+				switch (task.method)
 				{
 				case Euler:
-					LastRes = y0 + EulerStep(x0, y0, x1 - x0, f);
+					LastRes = resY[i] + EulerStep(resX[i], resY[i], task.x1 - resX[i], *task.f);
 					break;
 				case RK2:
-					LastRes = y0 + RK2Step(x0, y0, x1 - x0, f);
+					LastRes = resY[i] + RK2Step(resX[i], resY[i], task.x1 - resX[i], *task.f);
 					break;
 				case RK4:
-					LastRes = y0 + RK4Step(x0, y0, x1 - x0, f);
+					LastRes = resY[i] + RK4Step(resX[i], resY[i], task.x1 - resX[i], *task.f);
 					break;
 				default:
 					return -1;
 					break;
 				}
-				resX[i] =x1;
+
+				i++;
+				resX[i] = task.x1;
 				resY[i] = LastRes;
 				resSize = i + 1;
 
 				return 0;
 			}
 
-			y0 += tmp;
-
-			
-			x0 += h;
-
-			if (more) h *= 2;
-
 			i++;
-			resX[i] =x0;
-			resY[i] =y0;
+			resX[i] =resX[i-1] + hNow;
+			resY[i] = resY[i-1] + tmp;
+
+			if (more) hNow *= 2;
 
 			
 		}
@@ -371,121 +367,124 @@ extern "C" {
 		return 0;
 	}
 
-	DIFFURSOLVERDLL_API int SolveDiffUrAutoMethod(double x0, double y0, double x1, double h, double eps, F1 f, double& res, Methods method)
+	DIFFURSOLVERDLL_API int SolveDiffUrAutoMethod(const Task& task, double eps, double& res)
 	{
 		int i = 0;
-		double realx0 = x0;
+		double xNow = task.x0; 
+		Methods methodNow = task.method;
 		bool lessMethod = false;
-		while (x0 + h < x1) {
+		while (xNow + task.h < task.x1) {
 			lessMethod = false;
-			y0 +=AutoMethodStep(x0,y0,h,f,eps,lessMethod, method);
+			res +=AutoMethodStep(task.x0,res,task.h,*task.f,eps,lessMethod, methodNow);
 			if (lessMethod) {
-				switch (method)
+				switch (methodNow)
 				{
 				case Euler:
 					break;
 				case RK2:
-					method = Euler;
+					methodNow = Euler;
 					break;
 				case RK4:
-					method = RK2;
+					methodNow = RK2;
 					break;
 				default:
 					break;
 				}
 			}
 			i++;
-			x0 = realx0 + i * h;
+			xNow = task.x0 + i * task.h;
 		}
-		res = y0 + AutoMethodStep(x0, y0, x1-x0, f, eps, lessMethod, method);
+		res += AutoMethodStep(xNow, res, task.x1-xNow, *task.f, eps, lessMethod, methodNow);
 		return 0;
 	}
 
-	DIFFURSOLVERDLL_API int SolveDiffUrAutoMethodArr(double x0, double y0, double x1, double h, double eps, F1 f, double* res, int& sizeRes, Methods method)
+	DIFFURSOLVERDLL_API int SolveDiffUrAutoMethodArr(const Task& task, double eps, double* res)
 	{
 
 		int i = 0;
-		double realx0 = x0;
+		double xNow = task.x0;
 		bool lessMethod = false;
+		Methods methodNow = task.method;
 
-		res[i] =y0;
+		res[i] = task.y0;
 
-		while (x0 + h < x1) {
+		double yAdd = 0;
+
+		while (xNow + task.h < task.x1) {
 			lessMethod = false;
-			y0 += AutoMethodStep(x0, y0, h, f, eps, lessMethod, method);
+			yAdd = AutoMethodStep(xNow, res[i], task.h, (*task.f), eps, lessMethod, methodNow);
 			if (lessMethod) {
-				switch (method)
+				switch (methodNow)
 				{
 				case Euler:
 					break;
 				case RK2:
-					method = Euler;
+					methodNow = Euler;
 					break;
 				case RK4:
-					method = RK2;
+					methodNow = RK2;
 					break;
 				default:
 					break;
 				}
 			}
 			i++;
-			res[i] = y0;
-			x0 = realx0 + i * h;
+			res[i] = res[i-1] + yAdd;
+			xNow = task.x0 + i * task.h;
 		}
 		i++;
-		res[i] =y0 + AutoMethodStep(x0, y0, x1 - x0, f, eps, lessMethod, method);
-		sizeRes = i + 1;
+		res[i] = res[i-1] + AutoMethodStep(xNow, res[i-1], task.x1 - xNow, *task.f, eps, lessMethod, methodNow);
 		return 0;
 	}
 
-	DIFFURSOLVERDLL_API int SolveDiffUrAutoMethodArr2(double x0, double y0, double x1, double h, double eps, F1 f, double* res, int& sizeRes, Methods* methodsArr, Methods method)
+	DIFFURSOLVERDLL_API int SolveDiffUrAutoMethodArr2(const Task& task, double eps, double* res, Methods* methodsArr)
 	{
 
 		int i = 0;
-		double realx0 = x0;
+		double xNow = task.x0;
+		double yAdd = 0;
+		Methods methodNow = task.method;
 
-		res[i] =y0;
-		methodsArr[i]=method;
+		res[i] = task.y0;
+		methodsArr[i] = task.method;
 		bool lessMethod = false;
-		while (x0 + h < x1) {
+		while (xNow + task.h < task.x1) {
 			lessMethod = false;
-			y0 += AutoMethodStep(x0, y0, h, f, eps, lessMethod, method);
+			yAdd = AutoMethodStep(xNow, res[i], task.h, *task.f, eps, lessMethod, methodNow);
 			i++;
-			res[i] = y0;
-			methodsArr[i] = method;
+			res[i] = res[i-1] + yAdd;
+			methodsArr[i] = methodNow;
 
 
 			if (lessMethod) {
-				switch (method)
+				switch (methodNow)
 				{
 				case Euler:
 					break;
 				case RK2:
-					method = Euler;
+					methodNow = Euler;
 					break;
 				case RK4:
-					method = RK2;
+					methodNow = RK2;
 					break;
 				default:
 					break;
 				}
 			}
 			
-			x0 = realx0 + i * h;
+			xNow = task.x0 + i * task.h;
 		}
 		i++;
-		res[i] = y0 + AutoMethodStep(x0, y0, x1 - x0, f, eps,lessMethod, method);
-		methodsArr[i] = method;
-		sizeRes = i + 1;
+		res[i] = res[i-1] + AutoMethodStep(xNow, res[i - 1], task.x1 - xNow, *task.f, eps, lessMethod, methodNow);
+		methodsArr[i] = methodNow;
 		return 0;
 	}
 
-
-	DIFFURSOLVERDLL_API int SolveDiffUrArr(double x0, double y0, double x1, double h, F1 f, double* res, int& sizeRes, Methods method)
+	DIFFURSOLVERDLL_API int SolveDiffUrArr(const Task& task, double* res)
 	{
 		StepF stepF;
 
-		switch (method)
+		switch (task.method)
 		{
 		case Euler:
 			stepF = &EulerStep;
@@ -501,80 +500,92 @@ extern "C" {
 			break;
 		}
 		int i = 0;
-		double realx0 = x0;
-		res[i] = y0;
-		while (x0 + h < x1) {
-			
-			y0 += stepF(x0, y0, h, f);
+		double xNow = task.x0;
+		res[i] = task.y0;
+		while (xNow + task.h < task.x1) {
 			i++;
-			res[i] = y0;
-			x0 = realx0 + i * h;
+			res[i] =res[i-1] + stepF(xNow, res[i-1], task.h, *task.f);
+			
+			xNow = task.x0 + i * task.h;
 
 		}
 		i++;
-		res[i] = y0 + stepF(x0, y0, x1 - x0, f);
+		res[i] = res[i-1] + stepF(xNow, res[i-1], task.x1 - xNow, *task.f);
 
-		sizeRes = i + 1;
 		return 0;
 	}
 
-	DIFFURSOLVERDLL_API int SolveDiffUrSystem(double x0, double* y0, double x1, ui n,
-		double h, F1System* f, double* res, Methods method)
+	DIFFURSOLVERDLL_API int SolveDiffUrSystem(const SystemTask &task, double* res)
 	{
-		double* ystep = new double[n];
-		double* ytmp = new double[n];
-		double* ytmp2 = new double[n];
+		double* yStep = new double[task.n];
+		double* yTmp = new double[task.n];
+		double* yTmp2 = new double[task.n];
 		int k = 0;
-		double realx0 = 0;
-		switch (method)
+		double tNow = task.t0;
+
+		switch (task.method)
 		{
 		case Euler:
 
-			while (x0 + h < x1) {
-
-				EulerSystemStep(x0, y0, ystep, n, h, f);
-				for (ui i = 0; i < n; i++) {
-					y0[i] += ystep[i];
-				}
-				k++;
-				x0 = realx0 + h * k;
+			for (int i = 0; i < task.n; i++) {
+				res[i] = task.y0[i];
 			}
 
-			EulerSystemStep(x0, y0, ystep, n, x1 - x0, f);
-			for (ui i = 0; i < n; i++) {
-				res[i] = y0[i] + ystep[i];
+			while (tNow + task.h < task.t1) {
+
+				EulerSystemStep(tNow,res,yStep,task.n,task.h,task.f);
+				for (ui i = 0; i < task.n; i++) {
+					res[i] += yStep[i];
+				}
+				k++;
+				tNow = task.t0 + task.h * k;
+			}
+
+			EulerSystemStep(tNow, res, yStep, task.n, task.t1 - tNow, task.f);
+			for (ui i = 0; i < task.n; i++) {
+				res[i] += yStep[i];
 			}
 			break;
 		case RK2:
 
-			while (x0 + h < x1) {
-				RK2SystemStep(x0, y0, ystep, ytmp, n, h, f);
-				for (ui i = 0; i < n; i++) {
-					y0[i] += ystep[i];
-				}
-				k++;
-				x0 = realx0 + h * k;
+			for (int i = 0; i < task.n; i++) {
+				res[i] = task.y0[i];
 			}
 
-			RK2SystemStep(x0, y0, ystep, ytmp, n, x1 - x0, f);
-			for (ui i = 0; i < n; i++) {
-				res[i] = y0[i] + ystep[i];
+			while (tNow + task.h < task.t1) {
+
+				RK2SystemStep(tNow, res, yStep, yTmp, task.n, task.h, task.f);
+				for (ui i = 0; i < task.n; i++) {
+					res[i] += yStep[i];
+				}
+				k++;
+				tNow = task.t0 + task.h * k;
+			}
+
+			RK2SystemStep(tNow, res, yStep,yTmp, task.n, task.t1 - tNow, task.f);
+			for (ui i = 0; i < task.n; i++) {
+				res[i] += yStep[i];
 			}
 			break;
 		case RK4:
 
-			while (x0 + h < x1) {
-				RK4SystemStep(x0, y0, ystep, ytmp, ytmp2, n, h, f);
-				for (ui i = 0; i < n; i++) {
-					y0[i] += ystep[i];
-				}
-				k++;
-				x0 = realx0 + h * k;
+			for (int i = 0; i < task.n; i++) {
+				res[i] = task.y0[i];
 			}
 
-			RK4SystemStep(x0, y0, ystep, ytmp, ytmp2, n, x1 - x0, f);
-			for (ui i = 0; i < n; i++) {
-				res[i] = y0[i] + ystep[i];
+			while (tNow + task.h < task.t1) {
+
+				RK4SystemStep(tNow, res, yStep,yTmp,yTmp2, task.n, task.h, task.f);
+				for (ui i = 0; i < task.n; i++) {
+					res[i] += yStep[i];
+				}
+				k++;
+				tNow = task.t0 + task.h * k;
+			}
+
+			RK4SystemStep(tNow, res, yStep, yTmp, yTmp2, task.n, task.t1 - tNow, task.f);
+			for (ui i = 0; i < task.n; i++) {
+				res[i] += yStep[i];
 			}
 			break;
 		default:
@@ -585,84 +596,81 @@ extern "C" {
 		return 0;
 	}
 
-	DIFFURSOLVERDLL_API int SolveDiffUrSystemArr(double x0, double* y0, double x1, ui n, double h, F1System* f, double* res, int& resSize, Methods method)
+	DIFFURSOLVERDLL_API int SolveDiffUrSystemArr(const SystemTask& task, double* res)
 	{
-		double* ystep = new double[n];
-		double* ytmp = new double[n];
-		double* ytmp2 = new double[n];
-
+		double* yStep = new double[task.n];
+		double* yTmp = new double[task.n];
+		double* yTmp2 = new double[task.n];
 		int k = 0;
-		double realx0 = 0;
+		double tNow = task.t0;
 
-		for (int i = 0; i < n; i++) {
-			res[k*n +i] = y0[i];
-			
+
+		for (int i = 0; i < task.n; i++) {
+			res[k * task.n + i] = task.y0[i];
+
 		}
 		k++;
 
-		switch (method)
+		switch (task.method)
 		{
 		case Euler:
-			while (x0 + h + 0.00000001 < x1) {
 
-				EulerSystemStep(x0, y0, ystep, n, h, f);
-				for (ui i = 0; i < n; i++) {
-					
-					y0[i] += ystep[i];
-					res[k*n +i] = y0[i];
+
+			while (tNow + task.h < task.t1) {
+
+				EulerSystemStep(tNow, res + (k-1)*task.n, yStep, task.n, task.h, task.f);
+				for (ui i = 0; i < task.n; i++) {
+					res[k*task.n +i] = res[(k-1) * task.n + i] + yStep[i];
 				}
-
 				k++;
-				x0 = realx0 + h * k;
+				tNow = task.t0 + task.h * k;
 			}
 
-			EulerSystemStep(x0, y0, ystep, n, x1 - x0, f);
-			for (ui i = 0; i < n; i++) {
-				res[k*n +i] = y0[i] + ystep[i];
+			EulerSystemStep(tNow, res + (k - 1) * task.n, yStep, task.n, task.t1 - tNow, task.f);
+			for (ui i = 0; i < task.n; i++) {
+				res[k * task.n + i] = res[(k - 1) * task.n + i] + yStep[i];
 			}
 			break;
 		case RK2:
-			while (x0 + h + 0.00000001 < x1) {
-				RK2SystemStep(x0, y0, ystep, ytmp, n, h, f);
-				for (ui i = 0; i < n; i++) {
-					
-					y0[i] += ystep[i];
-					res[k*n +i] = y0[i];
+
+
+			while (tNow + task.h < task.t1) {
+
+				RK2SystemStep(tNow, res, yStep, yTmp, task.n, task.h, task.f);
+				for (ui i = 0; i < task.n; i++) {
+					res[k * task.n + i] = res[(k - 1) * task.n + i] + yStep[i];
 				}
 				k++;
-				x0 = realx0 + h * k;
-
+				tNow = task.t0 + task.h * k;
 			}
 
-			RK2SystemStep(x0, y0, ystep, ytmp, n, x1 - x0, f);
-			for (ui i = 0; i < n; i++) {
-				res[k*n +i] = y0[i] + ystep[i];
+			RK2SystemStep(tNow, res, yStep, yTmp, task.n, task.t1 - tNow, task.f);
+			for (ui i = 0; i < task.n; i++) {
+				res[k * task.n + i] = res[(k - 1) * task.n + i] + yStep[i];
 			}
 			break;
 		case RK4:
-			while (x0 + h + 0.00000001 < x1) {
-				RK4SystemStep(x0, y0, ystep, ytmp, ytmp2, n, h, f);
-				for (ui i = 0; i < n; i++) {
-					
-					y0[i] += ystep[i];
-					res[k*n +i] = y0[i];
-				}
 
+
+			while (tNow + task.h < task.t1) {
+
+				RK4SystemStep(tNow, res, yStep, yTmp, yTmp2, task.n, task.h, task.f);
+				for (ui i = 0; i < task.n; i++) {
+					res[k * task.n + i] = res[(k - 1) * task.n + i] + yStep[i];
+				}
 				k++;
-				x0 = realx0 + h * k;
+				tNow = task.t0 + task.h * k;
 			}
 
-			RK4SystemStep(x0, y0, ystep, ytmp, ytmp2, n, x1 - x0, f);
-			for (ui i = 0; i < n; i++) {
-				res[k* n +i] = y0[i] + ystep[i];
+			RK4SystemStep(tNow, res, yStep, yTmp, yTmp2, task.n, task.t1 - tNow, task.f);
+			for (ui i = 0; i < task.n; i++) {
+				res[k * task.n + i] = res[(k - 1) * task.n + i] + yStep[i];
 			}
 			break;
 		default:
 			return -1;
 			break;
 		}
-
-		resSize = k + 1;
 
 		return 0;
 	}

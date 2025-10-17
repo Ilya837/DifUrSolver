@@ -26,6 +26,18 @@ namespace DiffUrSolver
     [UnmanagedFunctionPointer(CallingConvention.Cdecl)]
     public delegate double F(double x);
 
+    [StructLayout(LayoutKind.Sequential)]
+    public struct Task
+    {
+        public double t0;
+        public double t1;
+        public IntPtr y0;
+        public uint n;
+        public double h;
+        public IntPtr f;
+        public Methods method;
+    }
+
     public class DiffUrSolver
     {
         const string dllPath = "..\\..\\..\\..\\x64\\Release\\DiffUrSolverDLL.dll";
@@ -64,12 +76,13 @@ namespace DiffUrSolver
         public static extern int SolveDiffUrArr(double x0, double y0, double x1, double h, F1 f,
              double[] res, ref int sizeRes, Methods method);
 
-        [DllImport(dllPath, CallingConvention = CallingConvention.Cdecl)]
-        public static extern int SolveDiffUrSystem(double x0, double[] y0, double x1, uint n, double h, IntPtr f,
-             double[] res, Methods method);
+        
 
         [DllImport(dllPath, CallingConvention = CallingConvention.Cdecl)]
-        public static extern int SolveDiffUrSystemArr(double x0, double[] y0, double x1, uint n, double h, IntPtr f,
-            double[] res, ref int resSize, Methods method);
+        public static extern int SolveDiffUrSystem(Task task, double[] res);
+
+        //[DllImport(dllPath, CallingConvention = CallingConvention.Cdecl)]
+        //public static extern int SolveDiffUrSystemArr(double x0, double[] y0, double x1, uint n, double h, IntPtr f,
+        //    double[] res, ref int resSize, Methods method);
     }
 }

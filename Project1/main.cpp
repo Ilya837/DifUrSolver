@@ -392,14 +392,14 @@ void ex9(Methods m) {
     
 
     F1System* system = new F1System[2];
-    system[0] = systemf1;
-    system[1] = systemf2;
+    //system[0] = systemf1;
+    //system[1] = systemf2;
 
     double* res = new double[20000000];
     
 
 
-    SolveDiffUrSystemArr(x0, y0, x1, n, 0.0001, system, res, resSize, m);
+    //SolveDiffUrSystemArr(x0, y0, x1, n, 0.0001, system, res, resSize, m);
 
     for (int i = 0; i < 2; i++) {
         std::cout << res[resSize* n +i] << std::endl;
