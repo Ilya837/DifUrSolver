@@ -14,9 +14,9 @@ enum Methods
 {
     Euler,
     RK2,
-    RK4
+    RK4,
+    BackEuler
 };
-
 
 extern "C" {
 
@@ -26,15 +26,15 @@ extern "C" {
 
     typedef double(__cdecl* F1System)(double x,const double* y);
 
+    typedef double(__cdecl* F)(double x);
+
     typedef double(__cdecl* StepF)(double x0, double y0, double h, F1 f);
 
-    typedef double(__cdecl* F)(double x);
 
     struct Task {
         double x0;
         double x1;
         double y0;
-        ui n;
         double h;
         F1* f;
         Methods method;
@@ -73,3 +73,4 @@ extern "C" {
     
 
 }
+

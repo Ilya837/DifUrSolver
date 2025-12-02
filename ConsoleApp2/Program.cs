@@ -43,40 +43,43 @@ class Program
 
     static void experiment1(DiffUrSolver.Methods method)
     {
-        double x0 = 0.0;
-        double y0 = 0.0;
-        double x1 = 1.0;
-        double h = 0.1;
+
+        DiffUrSolver.Task task = new DiffUrSolver.Task();
+
+        task.x0 = 0.0;
+        task.y0 = 0.0;
+        task.x1 = 1.0;
+        task.h = 0.1;
         double result = 0;
 
-        DiffUrSolver.F1 func = func1;
+        task.f = DiffUrSolver.DiffUrSolver.F1ToIntPtr( func1);
+        task.method = method;
 
-
-        int status = DiffUrSolver.DiffUrSolver.SolveDiffUr(x0, y0, x1, h, func, ref result,method);
+        int status = DiffUrSolver.DiffUrSolver.SolveDiffUr(task, ref result);
 
         Console.WriteLine(result.ToString());
-        Console.WriteLine(realFunc1(x1));
+        Console.WriteLine(realFunc1(task.x1));
     }
 
     static void experiment2(DiffUrSolver.Methods method)
     {
-        double x0 = 0.0;
-        double y0 = 0.0;
-        double x1 = 6.0;
-        double h = 0.3;
+
+        DiffUrSolver.Task task = new DiffUrSolver.Task();
+
+        task.x0 = 0.0;
+        task.y0 = 0.0;
+        task.x1 = 6.0;
+        task.h = 0.3;
         double eps = 0.0001;
         double[] resultX = new double[1000];
         double[] resultY = new double[1000];
         int resultSize = 0;
 
         // Решение ОДУ методом Эйлера
-        DiffUrSolver.F1 func = func1;
-        //DiffUrSolver.F1System f1System = SampleFunction2;
-        DiffUrSolver.StepF stepF = SampleFunction3;
-        DiffUrSolver.F f = SampleFunction4;
+        task.f = DiffUrSolver.DiffUrSolver.F1ToIntPtr(func1);
+        task.method = method;
 
-
-        int status = DiffUrSolver.DiffUrSolver.SolveDiffUrAutoHArr(x0,y0,x1,h,eps,func,resultX,resultY,ref resultSize,method);
+        int status = DiffUrSolver.DiffUrSolver.SolveDiffUrAutoHArr(task,eps,resultX,resultY,ref resultSize);
 
         //List<double> finalResult = result.TakeWhile(x => x != 0).ToList();
 
@@ -103,59 +106,132 @@ class Program
     }
      static void TestMethodsEps(DiffUrSolver.F1 func, DiffUrSolver.F realFunc, DiffUrSolver.Methods method)
     {
-        double x0 = 0.0;
-        double y0 = 0.0;
-        double x1 = 1.0;
-        double h = 0.1;
-        int size = 0;
+
+        DiffUrSolver.Task task = new DiffUrSolver.Task();
+
+        task.x0 = 0.0;
+        task.y0 = 0.0;
+        task.x1 = 4.0;
+        task.h = 0.1;
+
+        task.f = DiffUrSolver.DiffUrSolver.F1ToIntPtr(func);
+        task.method = method;
+        
         double[] result = new double[10000];
+        double[] realResult = new double[10000];
         double localRes = 0;
 
-        DiffUrSolver.DiffUrSolver.SolveDiffUrArr(x0, y0, x1, h, func, result,ref size, method);
+        for(int i=0; task.x0+ i*task.h <= task.x1; i++)
+        {
+            realResult[i] = realFunc(task.x0+ i*task.h);
+        }
+
+        DiffUrSolver.DiffUrSolver.SolveDiffUrArr(task, result);
+
+        //for (int i = 0; task.x0 + i * task.h < task.x1; i++)
+        //{
+        //    Console.Write(result[i] + " ");
+        //}
+
+        //Console.WriteLine();
+
+        //for (int i = 0; task.x0 + i * task.h < task.x1; i++)
+        //{
+        //    Console.Write(realResult[i] + " ");
+        //}
+
+        //Console.WriteLine();
 
         double globalError1 = -10000000;
         double localError1 = -10000000;
 
-        for (int i = 0; i< size; i++)
+        double startx0 = task.x0;
+        double starty0 = task.y0;
+        double startx1 = task.x1;
+
+        for (int i = 0; task.x0 + task.h < startx1; i++)
         {
-            if (Math.Abs( result[i] - realFunc(x0 + h * i)) > globalError1)
+
+            task.x0 = startx0 + task.h * i;
+            task.y0 = realFunc(task.x0);
+            task.x1 = task.x0 + task.h;
+
+            if (Math.Abs( result[i] - realResult[i]) > globalError1)
             {
-                globalError1 = Math.Abs(result[i] - realFunc(x0 + h * i));
+                globalError1 = Math.Abs(result[i] - realResult[i]);
             }
 
-            DiffUrSolver.DiffUrSolver.SolveDiffUr(x0 + h * i, realFunc(x0 + h * i), x0 + h * (i + 1), h, func,ref localRes, method);
+            DiffUrSolver.DiffUrSolver.SolveDiffUr(task,ref localRes);
 
-            if (Math.Abs(localRes - realFunc(x0 + h * (i+1))) > localError1)
+            if (Math.Abs(localRes - realResult[i+1]) > localError1)
             {
-                localError1 = Math.Abs(localRes - realFunc(x0 + h * (i + 1)));
+                localError1 = Math.Abs(localRes - realResult[i + 1]);
             }
         }
 
-        DiffUrSolver.DiffUrSolver.SolveDiffUrArr(x0, y0, x1, h/2, func, result, ref size, method);
+        task.x0 = startx0;
+        task.y0 = starty0;
+        task.x1 = startx1;
+        task.h /= 2;
+
+        for (int i = 0; task.x0 + i * task.h <= task.x1; i++)
+        {
+            realResult[i] = realFunc(task.x0 + i * task.h);
+        }
+
+        DiffUrSolver.DiffUrSolver.SolveDiffUrArr(task, result);
+
+        //for (int i = 0; task.x0 + i * task.h < task.x1; i++)
+        //{
+        //    Console.Write(result[i] + " ");
+        //}
+
+        //Console.WriteLine();
+
+        //for (int i = 0; task.x0 + i * task.h < task.x1; i++)
+        //{
+        //    Console.Write(realResult[i] + " ");
+        //}
+
+        //Console.WriteLine();
 
         double globalError2 = -10000000;
         double localError2 = -10000000;
 
-        for (int i = 0; i < size; i++)
+        startx0 = task.x0;
+        startx1 = task.x1;
+        starty0 = task.y0;
+
+        for (int i = 0; task.x0 + task.h < startx1; i++)
         {
-            if (Math.Abs(result[i] - realFunc(x0 + h * i / 2)) > globalError2)
+
+            task.x0 = startx0 + task.h * i;
+            task.y0 = realFunc(task.x0);
+            task.x1 = task.x0 + task.h;
+
+            if (Math.Abs(result[i] - realResult[i]) > globalError2)
             {
-                globalError2 = Math.Abs(result[i] - realFunc(x0 + h * i / 2));
+                globalError2 = Math.Abs(result[i] - realResult[i]);
             }
 
-            DiffUrSolver.DiffUrSolver.SolveDiffUr(x0 + h * i / 2, realFunc(x0 + h * i / 2), x0 + h * (i + 1) / 2, h / 2, func, ref localRes, method);
+            DiffUrSolver.DiffUrSolver.SolveDiffUr(task, ref localRes);
 
-            if (Math.Abs(localRes - realFunc(x0 + h * (i + 1)  / 2)) > localError2)
+            if (Math.Abs(localRes - realResult[i+1]) > localError2)
             {
-                localError2 = Math.Abs(localRes - realFunc(x0 + h * (i + 1) / 2));
+                localError2 = Math.Abs(localRes - realResult[i + 1]);
             }
         }
 
+        task.x0 = startx0;
+        task.y0 = starty0;
+        task.x1 = startx1;
+        task.h *= 2;
+
         Console.WriteLine("          |    Global error     |   Local error");
 
-        Console.WriteLine(" h = {0:F2} |     {1:F10}    |   {2:F10}",h, globalError1, localError1);
+        Console.WriteLine(" h = {0:F2} |     {1:F10}    |   {2:F10}",task.h, globalError1, localError1);
 
-        Console.WriteLine(" h = {0:F2} |     {1:F10}    |   {2:F10}", h/2, globalError2, localError2);
+        Console.WriteLine(" h = {0:F2} |     {1:F10}    |   {2:F10}", task.h/2, globalError2, localError2);
 
         Console.WriteLine("          |     h^{0:F10}  | h^{1:F10}", Math.Log2( globalError1/globalError2) ,Math.Log2(localError1 / localError2) );
 
@@ -180,7 +256,6 @@ class Program
 
         double[] array = new double[1];
         Marshal.Copy(y, array, 0, 1);
-
 
         return Math.Cos(array[0]);
     }
@@ -214,7 +289,7 @@ class Program
 
     static void experiment3(DiffUrSolver.Methods method)
     {
-        DiffUrSolver.Task task = new DiffUrSolver.Task();
+        DiffUrSolver.SystemTask task = new DiffUrSolver.SystemTask();
 
         task.t0 = 0;
         task.t1 = 4.0;
@@ -271,10 +346,10 @@ class Program
     }
     static void experiment4(DiffUrSolver.Methods method)
     {
-        DiffUrSolver.Task task = new DiffUrSolver.Task();
+        DiffUrSolver.SystemTask task = new DiffUrSolver.SystemTask();
 
         task.t0 = 0;
-        task.t1 = 2.0;
+        task.t1 = 4.0;
         task.h = 0.001;
         task.method = method;
         task.n = 1;
@@ -283,37 +358,15 @@ class Program
         y0[0] = 0;
         //y0[1] = 1;
 
-        int size = Marshal.SizeOf(typeof(double)) * y0.Length;
-        IntPtr y0Ptr = Marshal.AllocHGlobal(size);
-        Marshal.Copy(y0, 0, y0Ptr, y0.Length);
-
-        task.y0 = y0Ptr;
-
+        task.y0 = DiffUrSolver.DiffUrSolver.DoubleArrayToIntPtr(y0);
 
         double[] resultY = new double[task.n];
-
-        // Создаём массив IntPtr для хранения указателей на делегаты
-        IntPtr[] functionPointers = new IntPtr[task.n];
-
-        // Фиксируем делегаты в памяти, чтобы GC не перемещал их
-        GCHandle[] handles = new GCHandle[task.n];
 
         F1System[] system = new F1System[task.n];
 
         system[0] = SystemFunctionSingle;
-        //system[1] = SystemFunction2;
 
-        for (int i = 0; i < system.Length; i++)
-        {
-            handles[i] = GCHandle.Alloc(system[i]);
-            functionPointers[i] = Marshal.GetFunctionPointerForDelegate(system[i]);
-        }
-
-
-        GCHandle functionsArrayHandle = GCHandle.Alloc(functionPointers, GCHandleType.Pinned);
-
-        task.f = functionsArrayHandle.AddrOfPinnedObject();
-
+        task.f = DiffUrSolver.DiffUrSolver.F1SystemToIntPtr(system);
 
         DiffUrSolver.DiffUrSolver.SolveDiffUrSystem(task, resultY);
 
@@ -325,16 +378,73 @@ class Program
         Console.WriteLine(realFunc1(task.t1));
 
     }
+
+    static void experiment5(DiffUrSolver.Methods method)
+    {
+        double c = 1.0;
+        double m = 1.0;
+        double k = 1.0;
+
+        DiffUrSolver.SecondTask task = new DiffUrSolver.SecondTask();
+        task.t0 = 0;
+        task.t1 = 10.0;
+        task.y_0 = 2;
+        task.y1_0 = 0;
+        task.h = 0.1;
+        task.A = 1;
+        task.B = c/m;
+        task.C = k/m;
+        task.D = 0;
+        task.method = method;
+        double result = 0;
+        DiffUrSolver.DiffUrSolver.SolveSecondDiffUr(task, ref result);
+        Console.WriteLine(result.ToString());
+    }
+    static void experiment5Arr(DiffUrSolver.Methods method)
+    {
+        double c = 4.47;
+        double m = 10.0;
+        double k = 50.0;
+
+        DiffUrSolver.SecondTask task = new DiffUrSolver.SecondTask();
+        task.t0 = 0;
+        task.t1 = 10;
+        task.y_0 = 0.01;
+        task.y1_0 = 0;
+        task.h = 0.1;
+        task.A = 1;
+        task.B = c / m;
+        task.C = k / m;
+        task.D = 0;
+        task.method = method;
+        double[] result = new double[10000];
+        DiffUrSolver.DiffUrSolver.SolveSecondDiffUrArr(task, ref result);
+        
+
+        double start = task.t0;
+        int j = 0;
+
+        while (start < task.t1)
+        {
+            Console.WriteLine(result[j]);
+            j++;
+            start = task.t0 + j * task.h;
+        }
+    }
     static void Main(string[] args)
     {
-        //experiment1(Methods.RK4);
-        //experiment2(DiffUrSolver.Methods.RK4);\
+        //experiment1(Methods.Euler);
+        //experiment1(Methods.BackEuler);
+
+        experiment5Arr(Methods.BackEuler);
+
+        //experiment2(DiffUrSolver.Methods.RK4);
 
         //FullTestMethodsEps(func1,realFunc1);
 
         //FullTestMethodsEps(func1,realFunc1);
 
-        experiment4(Methods.Euler);
+        //experiment4(Methods.Euler);
 
         
     }
