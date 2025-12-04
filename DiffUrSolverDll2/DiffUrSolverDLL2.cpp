@@ -37,8 +37,8 @@ double RK4Step(double x0, double y0, double h, F1 f)
 
 double BackEulerStep(double x0, double y0, double h, F1 f)
 {
-	double diff_lim = 1 >> 10;
-	int max_iter = 100000000;
+	double diff_lim = 1e-12;
+	int max_iter = 100000;
 
 	double y_next = y0 + h * f(x0, y0);
 
@@ -60,8 +60,10 @@ double BackEulerStep(double x0, double y0, double h, F1 f)
 		}
 		else {
 			y_next -= Fy / dFy;
+			double diff = std::abs(Fy / dFy);
+			//std::cout << diff;
 
-			if (std::abs(Fy / dFy) < diff_lim) break;
+			if (diff < diff_lim) break;
 		}
 
 	}

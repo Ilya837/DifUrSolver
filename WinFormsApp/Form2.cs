@@ -26,11 +26,11 @@ namespace WinFormsApp
             task.f = DiffUrSolver.DiffUrSolver.F1ToIntPtr(SampleFunction4);
 
 
-            task.h = 0.04;
-            task.method = Methods.Euler;
+            //task.h = 0.01;
+            //task.method = Methods.Euler;
 
-            //task.h = 0.5;
-            //task.method = Methods.BackEuler;
+            task.h = 0.1;
+            task.method = Methods.BackEuler;
 
             DrawPlot(task, RealSampleFunction4);
 

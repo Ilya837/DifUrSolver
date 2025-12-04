@@ -82,19 +82,24 @@ void getMaxMin(double* arr, ui n, double& max, double& min) {
 
 void ex1(Methods m) {
 
-    /*double x0 = 0;
-    double x1 = 7;
-    double h = 0.01;
+    Task task;
 
-    ui size = ui(ceil((x1 - x0) / h) + 1);
+    task.x0 = 0;
+    task.x1 = 7;
+    task.h = 0.01;
+    task.y0 = realFunc(task.x0);
+    task.method = m;
+    F1 fun = F1(func);
+    task.f = &fun;
 
-    std::vector<double> res = std::vector<double>();
-    res.clear();
+    ui size = ui(ceil((task.x1 - task.x0) / task.h) + 1);
 
-    SolveDiffUrArr(x0, 0, x1, h, func, res, m);
-    for (int i = 0; i < res.size(); i++) {
-        std::cout <<x0+ h*i <<"  " << res[i] << "  " << realFunc(x0 + h*i) << std::endl;
-    }*/
+    double* res = new double[size];
+
+    SolveDiffUrArr(task, res);
+    for (int i = 0; i < size; i++) {
+        std::cout <<task.x0+ task.h*i <<"  " << res[i] << "  " << realFunc(task.x0 + task.h*i) << std::endl;
+    }
 
     /*double* resx = new double[size * 3 - 1];
     double* resy = new double[size * 3 - 1];
@@ -408,18 +413,11 @@ void ex9(Methods m) {
 
 int main()
 {
-    //ex1(Euler);
+    ex1(BackEuler);
     //ex1_5(RK4);
     //ex2();
     //ex3(Euler);
     //ex4();
     //ex6full();
-    ex9(RK4);
-
-
-
-
-
-
-
+    //ex9(RK4);
 }
