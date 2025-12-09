@@ -216,15 +216,6 @@ namespace DiffUrSolver
             IntPtr y0Ptr = DoubleArrayToIntPtr(y0);
             systemTask.y0 = y0Ptr;
 
-
-            double[] resultY = new double[10000];
-
-            // Создаём массив IntPtr для хранения указателей на делегаты
-            IntPtr[] functionPointers = new IntPtr[systemTask.n];
-
-            // Фиксируем делегаты в памяти, чтобы GC не перемещал их
-            GCHandle[] handles = new GCHandle[systemTask.n];
-
             F1System[] system = new F1System[systemTask.n];
 
             system[0] = delegate (double x, IntPtr y) {
@@ -239,17 +230,9 @@ namespace DiffUrSolver
                 return (task.D - task.B * array[1] - task.C * array[0]) / task.A;
             };
 
-            for (int i = 0; i < system.Length; i++)
-            {
-                handles[i] = GCHandle.Alloc(system[i]);
-                functionPointers[i] = Marshal.GetFunctionPointerForDelegate(system[i]);
-            }
+            systemTask.f = F1SystemToIntPtr(system);
 
-
-            GCHandle functionsArrayHandle = GCHandle.Alloc(functionPointers, GCHandleType.Pinned);
-
-            systemTask.f = functionsArrayHandle.AddrOfPinnedObject();
-
+            double[] resultY = new double[10000];
 
             SolveDiffUrSystemArr(systemTask, resultY);
 

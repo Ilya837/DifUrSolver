@@ -436,7 +436,7 @@ class Program
         //experiment1(Methods.Euler);
         //experiment1(Methods.BackEuler);
 
-        experiment5Arr(Methods.BackEuler);
+        experiment5Arr(Methods.RK4);
 
         //experiment2(DiffUrSolver.Methods.RK4);
 

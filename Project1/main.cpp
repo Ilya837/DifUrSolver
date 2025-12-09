@@ -379,10 +379,10 @@ void ex8() {
 
 }
 
-double systemf1(double x, double*y) {
+double systemf1(double x,const double*y) {
     return  y[0] - 5 * y[1];
 }
-double systemf2(double x, double* y) {
+double systemf2(double x,const double* y) {
     return 5 * y[0] + y[1];
 }
 
@@ -411,9 +411,52 @@ void ex9(Methods m) {
     }
 }
 
+double systemf3(double x,const double* y) {
+    return  y[1];
+}
+double systemf4(double x,const double* y) {
+    return - 0.447 * y[1] - 5.0 * y[0];
+}
+
+void testSystem(Methods m) {
+	SystemTask task;
+    
+    task.t0 = 0;
+    task.t1 = 10;
+
+	task.y0 = new double[2] {0.01, 0};
+    task.h = 0.1;
+    task.n = 2;
+
+    F1System* system = new F1System[task.n];
+
+	system[0] = systemf3;
+	system[1] = systemf4;
+
+	task.f = system;
+
+    task.method = m;
+
+	double* res = new double[20000000];
+
+	SolveDiffUrSystemArr(task,res);
+
+	double tNow = task.t0;
+    int i = 1;
+
+	while (tNow + task.h < task.t1) {
+		std::cout << tNow << " " << res[(i-1)*task.n] << std::endl;
+		tNow = task.t0 + i * task.h ;
+		i++;
+	}
+
+    std::cout << tNow << " " << res[(i-1) * task.n] << std::endl;
+
+}
+
 int main()
 {
-    ex1(BackEuler);
+    testSystem(BackEuler);
     //ex1_5(RK4);
     //ex2();
     //ex3(Euler);
