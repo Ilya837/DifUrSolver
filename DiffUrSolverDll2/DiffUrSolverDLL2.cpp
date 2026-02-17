@@ -10,6 +10,18 @@
 
 typedef std::vector<std::function<double(double*)>> DiffFSystem;
 
+double* MemoryTmp::arr1 = nullptr;
+double* MemoryTmp::arr2 = nullptr;
+double* MemoryTmp::matrix1 = nullptr;
+double* MemoryTmp::matrix2 = nullptr;
+
+ui MemoryTmp::Narr1 = 0;
+ui MemoryTmp::Narr2 = 0;
+ui MemoryTmp::Nmatrix1 = 0;
+ui MemoryTmp::Nmatrix2 = 0;
+
+
+
 double EulerStep(double x0, double y0, double h, F1 f)
 {
 	return f(x0, y0) * h;
@@ -168,14 +180,14 @@ double AutoMethodStep(double x0, double y0, double h, F1 f, double eps,bool& les
 }
 
 
-void EulerSystemStep(double x0, double* y0, double* yStep, ui n, double h, F1System* f)
+void EulerSystemStep(double x0,const double* y0, double* yStep, ui n, double h, F1System* f)
 {
 	for (ui i = 0; i < n; i++) {
 		yStep[i] = h * f[i](x0, y0);
 	}
 }
 
-void RK2SystemStep(double x0,const double* y0, double* yStep, double* ytmp, ui n, double h, F1System* f)
+void RK2SystemStep(double x0,const double* y0, double* yStep, ui n, double h, F1System* f)
 {
 
 	for (ui i = 0; i < n; i++) {
@@ -183,44 +195,44 @@ void RK2SystemStep(double x0,const double* y0, double* yStep, double* ytmp, ui n
 	}
 
 	for (ui i = 0; i < n; i++) {
-		ytmp[i] = y0[i] + h * yStep[i];
+		MemoryTmp::arr1[i] = y0[i] + h * yStep[i];
 		
 	}
 
 	for (ui i = 0; i < n; i++) {
-		yStep[i] = h * (yStep[i] + f[i](x0 + h, ytmp)) / 2;
+		yStep[i] = h * (yStep[i] + f[i](x0 + h, MemoryTmp::arr1)) / 2;
 	}
 }
 
-void RK4SystemStep(double x0,const double* y0, double* yStep, double* ytmp, double* ytmp2, ui n, double h, F1System* f) {
+void RK4SystemStep(double x0,const double* y0, double* yStep, ui n, double h, F1System* f) {
 
 	
 	for (ui i = 0; i < n; i++) {
-		yStep[i] = ytmp[i] = f[i](x0, y0);
+		yStep[i] = MemoryTmp::arr1[i] = f[i](x0, y0);
 	}
 
 	for (ui i = 0; i < n; i++) {
-		ytmp2[i] = y0[i] + h * ytmp[i] / 2;
+		MemoryTmp::arr2[i] = y0[i] + h * MemoryTmp::arr1[i] / 2;
 	}
 
 	for (ui i = 0; i < n; i++) {
-		yStep[i] += 2 * (ytmp[i] = f[i](x0 + h / 2, ytmp2));
+		yStep[i] += 2 * (MemoryTmp::arr1[i] = f[i](x0 + h / 2, MemoryTmp::arr2));
 	}
 
 	for (ui i = 0; i < n; i++) {
-		ytmp2[i] = y0[i] + h * ytmp[i] / 2;
+		MemoryTmp::arr2[i] = y0[i] + h * MemoryTmp::arr1[i] / 2;
 	}
 
 	for (ui i = 0; i < n; i++) {
-		yStep[i] += 2 * (ytmp[i] = f[i](x0 + h / 2, ytmp2));
+		yStep[i] += 2 * (MemoryTmp::arr1[i] = f[i](x0 + h / 2, MemoryTmp::arr2));
 	}
 
 	for (ui i = 0; i < n; i++) {
-		ytmp2[i] = y0[i] + h * ytmp[i];
+		MemoryTmp::arr2[i] = y0[i] + h * MemoryTmp::arr1[i];
 	}
 
 	for (ui i = 0; i < n; i++) {
-		yStep[i] += f[i](x0 + h, ytmp2);
+		yStep[i] += f[i](x0 + h, MemoryTmp::arr2);
 		yStep[i] = yStep[i] * h / 6;
 	}
 
@@ -233,7 +245,7 @@ double* J( double* y, double* res, double* tmpY, ui n, DiffFSystem f) {
 	std::copy(y, y + n, copy);
 
 	for (int i = 0; i < n; i++) {
-		double tmp = f[i]( y);
+		double tmp = f[i](y);
 		for (int j = 0; j < n; j++) {
 			copy[j] += exp;
 			res[i * n + j] = (f[i]( copy) - tmp) / exp;
@@ -245,54 +257,93 @@ double* J( double* y, double* res, double* tmpY, ui n, DiffFSystem f) {
 }
 
 // will break original matrix
-void InverseMatrix(double* matrix, double* res, ui n) {
+void InverseMatrix(double* matrix, double* tmp, ui n) {
 	
-	std::memset(res, 0.0, n * n * sizeof(double));
+	std::memset(tmp, 0.0, n * n * sizeof(double));
 
-	/*for (int i = 0; i < n; i++) {
-		res[i * n + i] = 1.0;
-	}
+	double** matrix2 = new double*[n];
+	double** tmp2 = new double* [n];
 
 	for (int i = 0; i < n; i++) {
-		double diag = matrix[i * n + i];
-		for (ui j = i; j < n; j++) {
-			matrix[i * n + j] /= diag;
-			res[i * n + j] /= diag;
-		}
-		matrix[i * n + i] = 1;
+		tmp[i * n + i] = 1.0;
 
-		for (int k = i; k < n; k++) {
-			if (k != i) {
-				double factor = matrix[k * n + i];
-				for (int j = 0; j < n; j++) {
-					matrix[k * n + j] -= factor * matrix[i * n + j];
-					res[k * n + j] -= factor * res[i * n + j];
-				}
+		matrix2[i] = matrix + i * n;
+		tmp2[i] = tmp + i * n;
+	}
+
+	/*for (ui i = 0; i < n; i++) {
+		for (ui j = 0; j < n; j++) {
+			std::cout << matrix2[i][j]<< " ";
+		}
+		std::cout << std::endl;
+	}*/
+
+
+	for (ui i = 0; i < n; i++) {
+
+		ui j = i;
+		for (j = i; j < n; j++) {
+			if (matrix2[j][i] != 0) break;
+		}
+
+		if (j != i) {
+			std::swap(matrix2[i], matrix2[j]);
+			std::swap(tmp2[i], tmp2[j]);
+		}
+
+		double diag = matrix2[i][i];
+
+		for (ui j = i; j < n; j++) {
+			matrix2[i][j] /= diag;
+			tmp2[i][j] /= diag;
+		}
+		matrix2[i][i] = 1;
+
+		for (int k = i+1; k < n; k++) {
+
+			double factor = matrix2[k][i];
+			for (int j = 0; j < n; j++) {
+				matrix2[k][j] -= factor * matrix2[i][j];
+				tmp2[k][j] -= factor * tmp2[i][j];
 			}
+			
 		}
 	}
 
 	for (int i = n-2; i >= 0; i--) {
 		for (int j = i+1; j < n; j++) {
-			res[i * n + j] -= matrix[i * n + j] * res[j * n + j];
+			tmp2[i][j] -= matrix2[i][j] * tmp2[j][j];
 		}
-	}*/
+	}
 
-	if (n == 2) {
+	for (ui i = 0; i < n; i++) {
+		for (ui j = 0; j < n; j++) {
+			matrix[i * n + j] = tmp2[i][j];
+		}
+	}
+
+
+
+
+	/*if (n == 2) {
 		double det = matrix[0] * matrix[3] - matrix[1] * matrix[2];
 		res[0] = matrix[3] / det;
 		res[1] = -matrix[1] / det;
 		res[2] = -matrix[2] / det;
 		res[3] = matrix[0] / det;
 		return;
-	}
+	}*/
 
 }
 
-void BackEulerSystemStep(double x0, const double* y0, double* yStep, double* matrixTmp1, double* matrixTmp2, double* stepTmp, ui n, double h, F1System* f) {
+void BackEulerSystemStep(double x0, const double* y0, double* yStep, ui n, double h, F1System* f) {
 	double diff_lim = 1e-12;
 	int max_iter = 10000;
 	double x_next = x0 + h;
+
+	double* stepTmp = MemoryTmp::arr1;
+	double* matrixTmp1 = MemoryTmp::matrix1;
+	double* matrixTmp2 = MemoryTmp::matrix2;
 
 	for (ui i = 0; i < n; i++) {
 		yStep[i] = y0[i] + h * f[i](x0, y0);
@@ -318,7 +369,7 @@ void BackEulerSystemStep(double x0, const double* y0, double* yStep, double* mat
 
 		for (int j = 0; j < n; j++) {
 			for (int k = 0; k < n; k++) {
-				stepTmp[j] -= system[k](yStep) * matrixTmp2[j*n+k];
+				stepTmp[j] -= system[k](yStep) * matrixTmp1[j*n+k];
 			}
 		}
 
@@ -345,8 +396,6 @@ void BackEulerSystemStep(double x0, const double* y0, double* yStep, double* mat
 	}
 	
 }
-
-
 
 extern "C" {
 	
@@ -693,115 +742,37 @@ extern "C" {
 		int k = 0;
 		double tNow = task.t0;
 
+		for (int i = 0; i < task.n; i++) {
+			res[i] = task.y0[i];
+		}
+		k++;
+
+		StepSystemF stepF;
+
 		switch (task.method)
 		{
 		case Euler: {
-
-			for (int i = 0; i < task.n; i++) {
-				res[i] = task.y0[i];
-			}
-
-			while (tNow + task.h < task.t1) {
-
-				EulerSystemStep(tNow, res, yStep, task.n, task.h, task.f);
-				for (ui i = 0; i < task.n; i++) {
-					res[i] += yStep[i];
-				}
-				k++;
-				tNow = task.t0 + task.h * k;
-			}
-
-			EulerSystemStep(tNow, res, yStep, task.n, task.t1 - tNow, task.f);
-			for (ui i = 0; i < task.n; i++) {
-				res[i] += yStep[i];
-			}
-
+			stepF = &EulerSystemStep;
 			break;
 		}
 		case RK2: {
-
-			double* yTmp = new double[task.n];
-
-			for (int i = 0; i < task.n; i++) {
-				res[i] = task.y0[i];
-			}
-
-			while (tNow + task.h < task.t1) {
-
-				RK2SystemStep(tNow, res, yStep, yTmp, task.n, task.h, task.f);
-				for (ui i = 0; i < task.n; i++) {
-					res[i] += yStep[i];
-				}
-				k++;
-				tNow = task.t0 + task.h * k;
-			}
-
-			RK2SystemStep(tNow, res, yStep, yTmp, task.n, task.t1 - tNow, task.f);
-			for (ui i = 0; i < task.n; i++) {
-				res[i] += yStep[i];
-			}
-
-			delete[] yTmp;
-
+			MemoryTmp::initArr1(task.n);
+			stepF = &RK2SystemStep;
 			break;
 		}
 		case RK4: {
 
-			double* yTmp = new double[task.n];
-			double* yTmp2 = new double[task.n];
-
-			for (int i = 0; i < task.n; i++) {
-				res[i] = task.y0[i];
-			}
-
-			while (tNow + task.h < task.t1) {
-
-				RK4SystemStep(tNow, res, yStep, yTmp, yTmp2, task.n, task.h, task.f);
-				for (ui i = 0; i < task.n; i++) {
-					res[i] += yStep[i];
-				}
-				k++;
-				tNow = task.t0 + task.h * k;
-			}
-
-			RK4SystemStep(tNow, res, yStep, yTmp, yTmp2, task.n, task.t1 - tNow, task.f);
-			for (ui i = 0; i < task.n; i++) {
-				res[i] += yStep[i];
-			}
-
-			delete[] yTmp;
-			delete[] yTmp2;
-
+			MemoryTmp::initArr1(task.n);
+			MemoryTmp::initArr2(task.n);
+			stepF = &RK4SystemStep;
 			break;
 		}
 		case BackEuler: {
 
-			double* matrixTmp = new double[task.n* task.n];
-			double* matrixTmp2 = new double[task.n * task.n];
-			double* stepTmp = new double[task.n];
-
-			for (int i = 0; i < task.n; i++) {
-				res[i] = task.y0[i];
-			}
-
-			while (tNow + task.h < task.t1) {
-
-				BackEulerSystemStep(tNow, res, yStep, matrixTmp, matrixTmp2, stepTmp, task.n, task.h, task.f);
-				for (ui i = 0; i < task.n; i++) {
-					res[i] += yStep[i];
-				}
-				k++;
-				tNow = task.t0 + task.h * k;
-			}
-
-			BackEulerSystemStep(tNow, res, yStep, matrixTmp, matrixTmp2, stepTmp, task.n, task.t1 - tNow, task.f);
-			for (ui i = 0; i < task.n; i++) {
-				res[i] += yStep[i];
-			}
-
-			delete[] matrixTmp;
-			delete[] stepTmp;
-
+			MemoryTmp::initArr1(task.n);
+			MemoryTmp::initMatrix1(task.n);
+			MemoryTmp::initMatrix2(task.n);
+			stepF = &BackEulerSystemStep;
 			break;
 		}
 		default: {
@@ -810,6 +781,23 @@ extern "C" {
 			break;
 		}
 		}
+
+		while (tNow + task.h < task.t1) {
+
+			stepF(tNow, res, yStep, task.n, task.h, task.f);
+			for (ui i = 0; i < task.n; i++) {
+				res[i] += yStep[i];
+			}
+
+			tNow = task.t0 + task.h * k;
+			k++;
+		}
+
+		stepF(tNow, res, yStep, task.n, task.t1 - tNow, task.f);
+		for (ui i = 0; i < task.n; i++) {
+			res[i] += yStep[i];
+		}
+
 		delete[] yStep;
 		return 0;
 	}
@@ -824,108 +812,60 @@ extern "C" {
 
 		for (int i = 0; i < task.n; i++) {
 			res[k * task.n + i] = task.y0[i];
-
 		}
 		k++;
+
+		StepSystemF stepF;
 
 		switch (task.method)
 		{
 		case Euler: {
 
-			while (tNow + task.h < task.t1) {
-
-				EulerSystemStep(tNow, res + (k - 1) * task.n, yStep, task.n, task.h, task.f);
-				for (ui i = 0; i < task.n; i++) {
-					res[k * task.n + i] = res[(k - 1) * task.n + i] + yStep[i];
-				}
-				k++;
-				tNow = task.t0 + task.h * k;
-			}
-
-			EulerSystemStep(tNow, res + (k - 1) * task.n, yStep, task.n, task.t1 - tNow, task.f);
-			for (ui i = 0; i < task.n; i++) {
-				res[k * task.n + i] = res[(k - 1) * task.n + i] + yStep[i];
-			}
+			stepF = &EulerSystemStep;
 			break;
 		}
 		case RK2: {
 
-			double* yTmp = new double[task.n];
-
-			while (tNow + task.h < task.t1) {
-
-				RK2SystemStep(tNow, res + (k - 1) * task.n, yStep, yTmp, task.n, task.h, task.f);
-				for (ui i = 0; i < task.n; i++) {
-					res[k * task.n + i] = res[(k - 1) * task.n + i] + yStep[i];
-				}
-				k++;
-				tNow = task.t0 + task.h * k;
-			}
-
-			RK2SystemStep(tNow, res + (k - 1) * task.n, yStep, yTmp, task.n, task.t1 - tNow, task.f);
-			for (ui i = 0; i < task.n; i++) {
-				res[k * task.n + i] = res[(k - 1) * task.n + i] + yStep[i];
-			}
-
-			delete[] yTmp;
-
+			MemoryTmp::initArr1(task.n);
+			stepF = &RK2SystemStep;
 			break;
 		}
 		case RK4: {
 
-			double* yTmp = new double[task.n];
-			double* yTmp2 = new double[task.n];
-
-			while (tNow + task.h < task.t1) {
-
-				RK4SystemStep(tNow, res + (k - 1) * task.n, yStep, yTmp, yTmp2, task.n, task.h, task.f);
-				for (ui i = 0; i < task.n; i++) {
-					res[k * task.n + i] = res[(k - 1) * task.n + i] + yStep[i];
-				}
-				k++;
-				tNow = task.t0 + task.h * k;
-			}
-
-			RK4SystemStep(tNow, res + (k - 1) * task.n, yStep, yTmp, yTmp2, task.n, task.t1 - tNow, task.f);
-			for (ui i = 0; i < task.n; i++) {
-				res[k * task.n + i] = res[(k - 1) * task.n + i] + yStep[i];
-			}
-
-			delete[] yTmp;
-			delete[] yTmp2;
-
+			MemoryTmp::initArr1(task.n);
+			MemoryTmp::initArr2(task.n);
+			stepF = &RK4SystemStep;
 			break;
 		}
 		case BackEuler: {
 
-			double* yTmp1 = new double[task.n * task.n];
-			double* yTmp2 = new double[task.n * task.n];
-			double* stepTmp = new double[task.n];
-
-			while (tNow + task.h < task.t1) {
-
-				BackEulerSystemStep(tNow, res + (k - 1) * task.n, yStep, yTmp1, yTmp2, stepTmp, task.n, task.h, task.f);
-				for (ui i = 0; i < task.n; i++) {
-					res[k * task.n + i] = res[(k - 1) * task.n + i] + yStep[i];
-				}
-				k++;
-				tNow = task.t0 + task.h * k;
-			}
-
-			BackEulerSystemStep(tNow, res + (k - 1) * task.n, yStep, yTmp1, yTmp2, stepTmp, task.n, task.t1 - tNow, task.f);
-			for (ui i = 0; i < task.n; i++) {
-				res[k * task.n + i] = res[(k - 1) * task.n + i] + yStep[i];
-			}
-
-			delete[] yTmp1;
-			delete[] yTmp2;
-
+			MemoryTmp::initArr1(task.n);
+			MemoryTmp::initMatrix1(task.n);
+			MemoryTmp::initMatrix2(task.n);
+			stepF = &BackEulerSystemStep;
 			break;
 		}
 		default:
 			delete[] yStep;
 			return -1;
 			break;
+		}
+
+
+		while (tNow + task.h < task.t1) {
+
+			stepF(tNow, res + (k - 1) * task.n, yStep, task.n, task.h, task.f);
+			for (ui i = 0; i < task.n; i++) {
+				res[k * task.n + i] = res[(k - 1) * task.n + i] + yStep[i];
+			}
+
+			tNow = task.t0 + task.h * k;
+			k++;
+		}
+
+		stepF(tNow, res + (k - 1) * task.n, yStep, task.n, task.t1 - tNow, task.f);
+		for (ui i = 0; i < task.n; i++) {
+			res[k * task.n + i] = res[(k - 1) * task.n + i] + yStep[i];
 		}
 
 		delete[] yStep;

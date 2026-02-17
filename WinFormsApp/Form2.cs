@@ -1,10 +1,12 @@
 ﻿using System;
+using System.Reflection;
 using System.Runtime.InteropServices;
 using System.Windows.Forms;
 using DiffUrSolver;
 using OxyPlot;
 using OxyPlot.Annotations;
 using OxyPlot.Axes;
+using OxyPlot.Legends;
 using OxyPlot.Series;
 using OxyPlot.WindowsForms;
 
@@ -16,46 +18,238 @@ namespace WinFormsApp
         {
             InitializeComponent();
 
+            //example1();
+
+            //example2();
+
+            //example3(Methods.RK4);
+
+            example5(0.024, Methods.BackEuler, 0.0001, Methods.RK4);
+
+            //example4(0.025, Methods.Euler);
+
+            //example4(0.0010, Methods.RK4);
+
+            //example4(0.0005, Methods.RK4);
+
+            //example5(0.0013, Methods.RK4, 0.0001, Methods.RK4);
+        }
+
+
+        public void example1()
+        {
             DiffUrSolver.Task task = new DiffUrSolver.Task();
 
             task.x0 = 0.0;
             task.y0 = RealSampleFunction4(task.x0);
             task.x1 = 2.0;
-            
+
 
             task.f = DiffUrSolver.DiffUrSolver.F1ToIntPtr(SampleFunction4);
 
 
-            //task.h = 0.01;
-            //task.method = Methods.Euler;
+            task.h = 0.04;
+            task.method = Methods.Euler;
 
-            task.h = 0.1;
-            task.method = Methods.BackEuler;
+            //task.h = 2;
+            //task.method = Methods.BackEuler;
 
-            DrawPlot(task, RealSampleFunction4);
+            string title = "y'  = -50(y-cos(x))";
 
-            //{
-            //    DiffUrSolver.SystemTask systemTask = new DiffUrSolver.SystemTask();
+            DrawPlot(task, RealSampleFunction4,title);
+        }
+        
+        public void example2()
+        {
+            DiffUrSolver.SystemTask systemTask = new DiffUrSolver.SystemTask();
 
-            //    systemTask.t0 = 0.0;
-            //    systemTask.t1 = 4.0;
-            //    systemTask.h = 0.001;
-            //    systemTask.n = 2;
-            //    systemTask.method = Methods.RK4;
+            systemTask.t0 = 0.0;
+            systemTask.t1 = 4.0;
+            systemTask.h = 0.1;
+            systemTask.n = 2;
+            systemTask.method = Methods.RK4;
 
-            //    double[] y0 = new double[2];
-            //    y0[0] = 1;
-            //    y0[1] = 1;
+            double[] y0 = new double[2];
+            y0[0] = 1;
+            y0[1] = 1;
 
-            //    systemTask.y0 = DiffUrSolver.DiffUrSolver.DoubleArrayToIntPtr(y0);
-            //    systemTask.f = DiffUrSolver.DiffUrSolver.F1SystemToIntPtr(new F1System[] { SystemFunction1, SystemFunction2 });
+            double SystemFunction1(double x, IntPtr y)
+        {
 
-            //    DrawSystemPlot(systemTask, new F[] { RealSystemFunction1, RealSystemFunction2 });
-            //}
+            double[] array = new double[2];
+            Marshal.Copy(y, array, 0, 2);
 
 
+            return array[0] - 5 * array[1];
         }
 
+            double SystemFunction2(double x, IntPtr y)
+            {
+                double[] array = new double[2];
+                Marshal.Copy(y, array, 0, 2);
+
+                return 5 * array[0] + array[1];
+            }
+            
+            double RealSystemFunction1(double x)
+            {
+                return Math.Pow(Math.E, x) * (Math.Sin(-5 * x) + Math.Cos(-5 * x));
+            }
+
+            double RealSystemFunction2(double x)
+        {
+            return Math.Pow(Math.E, x) * (Math.Sin(5 * x) + Math.Cos(5 * x));
+        }
+
+            systemTask.y0 = DiffUrSolver.DiffUrSolver.DoubleArrayToIntPtr(y0);
+            systemTask.f = DiffUrSolver.DiffUrSolver.F1SystemToIntPtr(new F1System[] { SystemFunction1, SystemFunction2 });
+
+            DrawSystemPlot(systemTask, new F[] { RealSystemFunction1, RealSystemFunction2 });
+        }
+        
+        public void example3(Methods method)
+        {
+            double c = 4.47;
+            double m = 10.0;
+            double k = 50.0;
+
+            SecondTask task = new SecondTask();
+            task.t0 = 0;
+            task.t1 = 10;
+            task.y_0 = 0.01;
+            task.y1_0 = 0;
+            task.h = 0.1;
+            task.A = 1;
+            task.B = c / m;
+            task.C = k / m;
+            task.D = 0;
+            task.method = method;
+            double[] result = new double[10000];
+
+            double dzeta = c / (2 * Math.Sqrt(k * m));
+
+            double w = Math.Sqrt(k / m);
+
+            double wd = w * Math.Sqrt(1 - dzeta * dzeta);
+
+            double C1 = task.y_0;
+
+            double C2 = (task.y1_0 + C1 * dzeta * w) / wd;
+
+            double RealFunction(double t)
+            {
+                return Math.Exp(-dzeta * w * t) * (C1 * Math.Cos(wd * t) + C2 * Math.Sin(wd*t));
+            }
+
+            string title = task.A + "*y'' + " + $"{c}/{m}" + "*y' + " + $"{k}/{m}" + "*y = " + task.D; 
+
+            DrawSecondPlot(task,RealFunction,  title);
+        }
+
+        public void example4(double h, Methods method)
+        {
+            DiffUrSolver.SystemTask systemTask = new DiffUrSolver.SystemTask();
+
+            systemTask.t0 = 0.0;
+            systemTask.t1 = 0.3;
+            systemTask.h = h;
+            systemTask.n = 3;
+            systemTask.method = method;
+
+            double[] y0 = new double[3];
+            y0[0] = 1;
+            y0[1] = 0;
+            y0[1] = 0;
+
+            double SystemFunction1(double x, IntPtr y)
+            {
+
+                double[] array = new double[3];
+                Marshal.Copy(y, array, 0, 3);
+
+
+                return -0.04 * array[0] + 10000 * array[1] * array[2];
+            }
+
+            double SystemFunction2(double x, IntPtr y)
+            {
+                double[] array = new double[3];
+                Marshal.Copy(y, array, 0, 3);
+
+                return 0.04 * array[0] - 10000 * array[1] * array[2] - 30000000 * array[1] * array[1];
+            }
+
+            double SystemFunction3(double x, IntPtr y)
+            {
+                double[] array = new double[3];
+                Marshal.Copy(y, array, 0, 3);
+
+                return 30000000 * array[1] * array[1];
+            }
+
+            systemTask.y0 = DiffUrSolver.DiffUrSolver.DoubleArrayToIntPtr(y0);
+            systemTask.f = DiffUrSolver.DiffUrSolver.F1SystemToIntPtr(new F1System[] { SystemFunction1, SystemFunction2, SystemFunction3 });
+
+            DrawSystemPlot(systemTask);
+        }
+
+        public void example5(double h, Methods method, double h2, Methods method2)
+        {
+            DiffUrSolver.SystemTask systemTask = new DiffUrSolver.SystemTask();
+            DiffUrSolver.SystemTask systemTask2 = new DiffUrSolver.SystemTask();
+
+            systemTask.t0 = 0.0;
+            systemTask.t1 = 0.3;
+            systemTask.h = h;
+            systemTask.n = 3;
+            systemTask.method = method;
+
+
+            systemTask2.t0 = 0.0;
+            systemTask2.t1 = 0.3;
+            systemTask2.h = h2;
+            systemTask2.n = 3;
+            systemTask2.method = method2;
+
+            double[] y0 = new double[3];
+            y0[0] = 1;
+            y0[1] = 0;
+            y0[1] = 0;
+
+            double SystemFunction1(double x, IntPtr y)
+            {
+
+                double[] array = new double[3];
+                Marshal.Copy(y, array, 0, 3);
+
+
+                return -0.04 * array[0] + 10000 * array[1] * array[2];
+            }
+
+            double SystemFunction2(double x, IntPtr y)
+            {
+                double[] array = new double[3];
+                Marshal.Copy(y, array, 0, 3);
+
+                return 0.04 * array[0] - 10000 * array[1] * array[2] - 30000000 * array[1] * array[1];
+            }
+
+            double SystemFunction3(double x, IntPtr y)
+            {
+                double[] array = new double[3];
+                Marshal.Copy(y, array, 0, 3);
+
+                return 30000000 * array[1] * array[1];
+            }
+
+            systemTask.y0 = DiffUrSolver.DiffUrSolver.DoubleArrayToIntPtr(y0);
+            systemTask.f = DiffUrSolver.DiffUrSolver.F1SystemToIntPtr(new F1System[] { SystemFunction1, SystemFunction2, SystemFunction3 });
+
+            systemTask2.y0 = DiffUrSolver.DiffUrSolver.DoubleArrayToIntPtr(y0);
+            systemTask2.f = DiffUrSolver.DiffUrSolver.F1SystemToIntPtr(new F1System[] { SystemFunction1, SystemFunction2, SystemFunction3 });
+
+            DrawSystemPlotTwo(systemTask,systemTask2);
+        }
         public static double SampleFunction(double x, double y)
         {
             return y;
@@ -106,32 +300,7 @@ namespace WinFormsApp
             return 5 * Math.Sin(6 * x + 30)/6;
         }
 
-        public static double SystemFunction1(double x, IntPtr y)
-        {
-
-            double[] array = new double[2];
-            Marshal.Copy(y, array, 0, 2);
-
-
-            return array[0] - 5 * array[1];
-        }
-
-        public static double SystemFunction2(double x, IntPtr y)
-        {
-            double[] array = new double[2];
-            Marshal.Copy(y, array, 0, 2);
-
-            return 5 *array[0] + array[1];
-        }
-        public static double RealSystemFunction1(double x)
-        {
-            return Math.Pow(Math.E, x) * (Math.Sin(-5 * x) + Math.Cos(-5 * x));
-        }
-
-        public static double RealSystemFunction2(double x)
-        {
-            return Math.Pow(Math.E, x) * (Math.Sin(5 * x) + Math.Cos(5 * x));
-        }
+        
 
         private const AnnotationLayer HiddenLayer = (AnnotationLayer)100;
         private const AnnotationLayer VisibleLayer = AnnotationLayer.AboveSeries;
@@ -140,13 +309,13 @@ namespace WinFormsApp
 
         private class MethodAnnotation : TextAnnotation { };
 
-        private void DrawPlot(DiffUrSolver.Task task, DiffUrSolver.F realFunc)
+        private void DrawPlot(DiffUrSolver.Task task, DiffUrSolver.F realFunc,string title = "")
         {
-            var plotModel = new PlotModel { Title = "Пример простого графика" };
+            var plotModel = new PlotModel { Title = title };
 
             var lineSeries = new LineSeries
             {
-                Title = "My",
+                Title = "Method solution",
                 MarkerType = MarkerType.Circle,
                 MarkerSize = 3,
                 MarkerStroke = OxyColors.Red,
@@ -157,7 +326,7 @@ namespace WinFormsApp
 
             var lineSeries2 = new LineSeries
             {
-                Title = "Real",
+                Title = "Exact solution",
                 MarkerType = MarkerType.Circle,
                 MarkerSize = 3,
                 MarkerStroke = OxyColors.Green,
@@ -167,10 +336,6 @@ namespace WinFormsApp
 
             double[] resultX = new double[10000];
             double[] resultY = new double[10000];
-
-
-            //int status = DiffUrSolver.DiffUrSolver.SolveDiffUr(task, ref result);
-
 
             int status = DiffUrSolver.DiffUrSolver.SolveDiffUrArr(task, resultY);
 
@@ -234,6 +399,173 @@ namespace WinFormsApp
             plotModel.Series.Add(lineSeries);
             plotModel.Series.Add(lineSeries2);
 
+            Legend l = new Legend();
+
+            l.LegendPosition = LegendPosition.RightTop;
+            l.LegendPlacement = LegendPlacement.Outside;
+            l.LegendOrientation = LegendOrientation.Vertical;
+
+            plotModel.Legends.Add(l);
+
+            var plotView = new PlotView
+            {
+                Dock = DockStyle.Fill,
+                Model = plotModel
+            };
+
+            this.Controls.Add(plotView);
+
+            this.KeyPreview = true;
+            this.KeyDown += (sender, e) =>
+            {
+                if (e.Control && e.KeyCode == Keys.E)
+                {
+                    foreach (var annotation in plotModel.Annotations.OfType<EpsAnnotation>())
+                    {
+                        annotation.Layer = annotation.Layer == HiddenLayer ? VisibleLayer : HiddenLayer;
+                    }
+                    plotModel.InvalidatePlot(true);
+                }
+
+                if (e.Control && e.KeyCode == Keys.M)
+                {
+                    foreach (var annotation in plotModel.Annotations.OfType<MethodAnnotation>())
+                    {
+                        annotation.Layer = annotation.Layer == HiddenLayer ? VisibleLayer : HiddenLayer;
+                    }
+                    plotModel.InvalidatePlot(true);
+                }
+            };
+
+        }
+
+        private void DrawSecondPlot(DiffUrSolver.SecondTask task, DiffUrSolver.F realFunc, string Title = "")
+        {
+            var plotModel = new PlotModel { Title = Title };
+
+            var lineSeries = new LineSeries
+            {
+                Title = "Method solution",
+                MarkerType = MarkerType.Circle,
+                MarkerSize = 3,
+                MarkerStroke = OxyColors.Red,
+                MarkerFill = OxyColors.Red,
+                Color = OxyColors.Red,
+
+            };
+
+            var lineSeries2 = new LineSeries
+            {
+                Title = "Exact solution",
+                MarkerType = MarkerType.Circle,
+                MarkerSize = 3,
+                MarkerStroke = OxyColors.Green,
+                MarkerFill = OxyColors.Green,
+                Color = OxyColors.Green,
+            };
+
+            double[] resultX = new double[10000];
+            double[] resultY = new double[10000];
+
+
+            int status =  DiffUrSolver.DiffUrSolver.SolveSecondDiffUrArr(task, ref resultY);
+           
+            resultX[0] = task.t0;
+            int i = 1;
+
+            double v = task.t0 + i * task.h;
+
+            while (v < task.t1)
+            {
+                resultX[i] = v;
+                i++;
+                v = task.t0 + i * task.h;
+            }
+
+            resultX[i] = task.t1;
+
+            int resultSize = i + 1;
+
+            lineSeries.Points.Add(new DataPoint(resultX[0], resultY[0]));
+            lineSeries2.Points.Add(new DataPoint(resultX[0], realFunc(resultX[0])));
+            double diff = Math.Abs(resultY[0] - realFunc(resultX[0]));
+            plotModel.Annotations.Add(new EpsAnnotation
+            {
+                Text = diff.ToString("F6"),
+                TextPosition = new DataPoint(resultX[0], (resultY[0] + realFunc(resultX[0])) / 2),
+                Background = OxyColors.White,
+                TextColor = OxyColors.Black,
+                Layer = HiddenLayer
+
+            });
+
+            for (i = 1; i < resultSize; i++)
+            {
+                lineSeries.Points.Add(new DataPoint(resultX[i], resultY[i*2]));
+                lineSeries2.Points.Add(new DataPoint(resultX[i], realFunc(resultX[i])));
+                diff = Math.Abs(resultY[i] - realFunc(resultX[i]));
+                plotModel.Annotations.Add(new EpsAnnotation
+                {
+                    Text = diff.ToString("F6"),
+                    TextPosition = new DataPoint(resultX[i], (resultY[i*2] + realFunc(resultX[i])) / 2),
+                    Background = OxyColors.White,
+                    TextColor = OxyColors.Black,
+                    Layer = HiddenLayer
+
+                });
+
+                plotModel.Annotations.Add(new MethodAnnotation
+                {
+                    Text = (resultX[i] - resultX[i - 1]).ToString(),
+                    TextPosition = new DataPoint((resultX[i] + resultX[i - 1]) / 2, (resultY[i*2] + resultY[i*2 - 2]) / 2),
+                    Background = OxyColors.White,
+                    TextColor = OxyColors.Black,
+                    Layer = HiddenLayer
+
+                });
+
+            }
+
+
+            plotModel.Series.Add(lineSeries);
+            plotModel.Series.Add(lineSeries2);
+
+            
+
+            plotModel.Axes.Add(new LinearAxis
+            {
+                Position = AxisPosition.Bottom,
+                Title = "t",
+                //MajorGridlineStyle = LineStyle.Solid,
+
+                ExtraGridlines = new[] { 0.0 },
+                ExtraGridlineStyle = LineStyle.Solid,
+                ExtraGridlineThickness = 2,
+                ExtraGridlineColor = OxyColors.Black
+            });
+
+            plotModel.Axes.Add(new LinearAxis
+            {
+                Position = AxisPosition.Left,
+                Title = "y",
+                //MajorGridlineStyle = LineStyle.Solid,
+
+                ExtraGridlines = new[] { 0.0 },
+                ExtraGridlineStyle = LineStyle.Solid,
+                ExtraGridlineThickness = 2,
+                ExtraGridlineColor = OxyColors.Black
+            });
+
+            plotModel.IsLegendVisible = true;
+
+            Legend l = new Legend();
+
+            l.LegendPosition = LegendPosition.RightTop;
+            l.LegendPlacement = LegendPlacement.Outside;
+            l.LegendOrientation = LegendOrientation.Vertical;
+
+            plotModel.Legends.Add(l);
+
             var plotView = new PlotView
             {
                 Dock = DockStyle.Fill,
@@ -267,31 +599,10 @@ namespace WinFormsApp
         }
         private void DrawSystemPlot(DiffUrSolver.SystemTask systemTask, F[] RealSystem)
         {
-            var plotModel = new PlotModel { Title = "Пример простого графика" };
 
-
-
-            var lineSeries = new LineSeries
-            {
-                Title = "My",
-                MarkerType = MarkerType.Circle,
-                MarkerSize = 3,
-                MarkerStroke = OxyColors.Red,
-                MarkerFill = OxyColors.Red,
-                Color = OxyColors.Red,
-
-            };
-
-            var lineSeries2 = new LineSeries
-            {
-                Title = "Real",
-                MarkerType = MarkerType.Circle,
-                MarkerSize = 3,
-                MarkerStroke = OxyColors.Green,
-                MarkerFill = OxyColors.Green,
-                Color = OxyColors.Green,
-            };
-
+            TabControl tabControl = new TabControl();
+            tabControl.Dock = DockStyle.Fill;
+            this.Controls.Add(tabControl);
 
             int size = 10000000;
             double[] resultX = new double[size];
@@ -308,56 +619,116 @@ namespace WinFormsApp
 
             resultX[k] = systemTask.t1;
 
+            int resultSize = k;
 
-            //lineSeries.Points.Add(new DataPoint(resultY[0], resultY[1]));
-            //lineSeries2.Points.Add(new DataPoint(RealSystemFunction1(resultX[0]), RealSystemFunction2(resultX[0])));
-            //double diff = Math.Abs(resultY[0] - realFunc(resultX[0]));
-            //plotModel.Annotations.Add(new EpsAnnotation
-            //{
-            //    Text = diff.ToString("F6"),
-            //    TextPosition = new DataPoint(resultX[0], (resultY[0] + realFunc(resultX[0])) / 2),
-            //    Background = OxyColors.White,
-            //    TextColor = OxyColors.Black,
-            //    Layer = HiddenLayer
 
-            //});
 
-            double diff = 0;
-
-            for (int i = 0; i < k; i++)
+            for (int i = 0; i < systemTask.n; i++)
             {
-                lineSeries.Points.Add(new DataPoint(resultY[i * systemTask.n], resultY[i * systemTask.n + 1]));
-                lineSeries2.Points.Add(new DataPoint(RealSystem[0](resultX[i]), RealSystem[1](resultX[i])));
+                var plotModel = new PlotModel { Title = "Пример простого графика" };
 
-                diff = Math.Sqrt(Math.Pow(resultY[i * systemTask.n] - RealSystem[0](resultX[i]), 2) + Math.Pow(resultY[i * systemTask.n + 1] - RealSystem[1](resultX[i]), 2));
+                var MylineSeries = new LineSeries
+                {
+                    Title = "My",
+                    MarkerType = MarkerType.Circle,
+                    MarkerSize = 3,
+                    MarkerStroke = OxyColors.Red,
+                    MarkerFill = OxyColors.Red,
+                    Color = OxyColors.Red,
+
+                };
+
+                var ReallineSeries = new LineSeries
+                {
+                    Title = "Real",
+                    MarkerType = MarkerType.Circle,
+                    MarkerSize = 3,
+                    MarkerStroke = OxyColors.Green,
+                    MarkerFill = OxyColors.Green,
+                    Color = OxyColors.Green,
+                };
+
+                MylineSeries.Points.Add(new DataPoint(resultX[0], resultY[i]));
+                ReallineSeries.Points.Add(new DataPoint(resultX[0], RealSystem[i](resultX[0])));
+                double diff = Math.Abs(resultY[i] - RealSystem[i](resultX[0]));
+
                 plotModel.Annotations.Add(new EpsAnnotation
                 {
                     Text = diff.ToString("F6"),
-                    TextPosition = new DataPoint((resultY[i * systemTask.n] + RealSystem[0](resultX[i])) / 2, (resultY[i * systemTask.n + 1] + RealSystem[1](resultX[i])) / 2),
+                    TextPosition = new DataPoint(resultX[0], (resultY[i] + RealSystem[i](resultX[0])) / 2),
                     Background = OxyColors.White,
                     TextColor = OxyColors.Black,
                     Layer = HiddenLayer
 
                 });
 
-                //plotModel.Annotations.Add(new MethodAnnotation
-                //{
-                //    Text = (resultX[i] - resultX[i - 1]).ToString(),
-                //    TextPosition = new DataPoint((resultX[i] + resultX[i - 1]) / 2, (resultY[i] + resultY[i - 1]) / 2),
-                //    Background = OxyColors.White,
-                //    TextColor = OxyColors.Black,
-                //    Layer = HiddenLayer
+                for (int j = 1; j < resultSize; j++)
+                {
+                    MylineSeries.Points.Add(new DataPoint(resultX[j], resultY[i + j* systemTask.n]));
+                    ReallineSeries.Points.Add(new DataPoint(resultX[j], RealSystem[i](resultX[j])));
+                    diff = Math.Abs(resultY[i + j * systemTask.n] - RealSystem[i](resultX[j]));
 
-                //});
+                    plotModel.Annotations.Add(new EpsAnnotation
+                    {
+                        Text = diff.ToString("F6"),
+                        TextPosition = new DataPoint(resultX[j], (resultY[i + j * systemTask.n] + RealSystem[i](resultX[j])) / 2),
+                        Background = OxyColors.White,
+                        TextColor = OxyColors.Black,
+                        Layer = HiddenLayer
+
+                    });
+
+                    plotModel.Annotations.Add(new MethodAnnotation
+                    {
+                        Text = (resultX[j] - resultX[j - 1]).ToString(),
+                        TextPosition = new DataPoint((resultX[j] + resultX[j - 1]) / 2, (resultY[i + j * systemTask.n] + resultY[i + j * (systemTask.n-1)]) / 2),
+                        Background = OxyColors.White,
+                        TextColor = OxyColors.Black,
+                        Layer = HiddenLayer
+
+                    });
+                }
+
+
+                plotModel.Series.Add(MylineSeries);
+                plotModel.Series.Add(ReallineSeries);
+
+                var plotView = new PlotView
+                {
+                    Dock = DockStyle.Fill,
+                    Model = plotModel
+                };
+
+                var tabPage = new TabPage("Ctranica " + i );
+
+                tabPage.Controls.Add(plotView);
+                tabControl.TabPages.Add(tabPage);
+
+                this.KeyPreview = true;
+                this.KeyDown += (sender, e) =>
+                {
+                    if (e.Control && e.KeyCode == Keys.E)
+                    {
+                        foreach (var annotation in plotModel.Annotations.OfType<EpsAnnotation>())
+                        {
+                            annotation.Layer = annotation.Layer == HiddenLayer ? VisibleLayer : HiddenLayer;
+                        }
+                        plotModel.InvalidatePlot(true);
+                    }
+
+                    if (e.Control && e.KeyCode == Keys.M)
+                    {
+                        foreach (var annotation in plotModel.Annotations.OfType<MethodAnnotation>())
+                        {
+                            annotation.Layer = annotation.Layer == HiddenLayer ? VisibleLayer : HiddenLayer;
+                        }
+                        plotModel.InvalidatePlot(true);
+                    }
+                };
 
             }
 
-
-
-            plotModel.Series.Add(lineSeries);
-            plotModel.Series.Add(lineSeries2);
-
-            double xMax = lineSeries.Points.Max(p => Math.Abs(p.X));
+           /* double xMax = lineSeries.Points.Max(p => Math.Abs(p.X));
             double yMax = lineSeries.Points.Max(p => Math.Abs(p.Y));
             double maxRange = Math.Max(xMax, yMax) * 1.1; // +10% для отступов
 
@@ -398,29 +769,263 @@ namespace WinFormsApp
                 Model = plotModel
             };
 
-            this.Controls.Add(plotView);
+            this.Controls.Add(plotView); */
 
-            this.KeyPreview = true;
-            this.KeyDown += (sender, e) =>
+        }
+
+        private void DrawSystemPlot(DiffUrSolver.SystemTask systemTask)
+        {
+
+            TabControl tabControl = new TabControl();
+            tabControl.Dock = DockStyle.Fill;
+            this.Controls.Add(tabControl);
+
+            int size = 10000000;
+            double[] resultX = new double[size];
+            double[] resultY = new double[size * systemTask.n];
+
+            int status = DiffUrSolver.DiffUrSolver.SolveDiffUrSystemArr(systemTask, resultY);
+
+            int k = 0;
+            while (systemTask.t0 + k * systemTask.h < systemTask.t1)
             {
-                if (e.Control && e.KeyCode == Keys.E)
+                resultX[k] = systemTask.t0 + k * systemTask.h;
+                k++;
+            }
+
+            resultX[k] = systemTask.t1;
+
+            int resultSize = k;
+
+
+
+            for (int i = 0; i < systemTask.n; i++)
+            {
+                var plotModel = new PlotModel { Title = "" };
+
+                var MylineSeries = new LineSeries
                 {
-                    foreach (var annotation in plotModel.Annotations.OfType<EpsAnnotation>())
+                    Title = "My",
+                    //MarkerType = MarkerType.Circle,
+                    MarkerSize = 3,
+                    MarkerStroke = OxyColors.Red,
+                    MarkerFill = OxyColors.Red,
+                    Color = OxyColors.Red,
+
+                };
+
+                MylineSeries.Points.Add(new DataPoint(resultX[0], resultY[i]));
+
+                for (int j = 1; j < resultSize; j++)
+                {
+                    MylineSeries.Points.Add(new DataPoint(resultX[j], resultY[i + j * systemTask.n]));
+
+                    plotModel.Annotations.Add(new MethodAnnotation
                     {
-                        annotation.Layer = annotation.Layer == HiddenLayer ? VisibleLayer : HiddenLayer;
-                    }
-                    plotModel.InvalidatePlot(true);
+                        Text = (resultX[j] - resultX[j - 1]).ToString(),
+                        TextPosition = new DataPoint((resultX[j] + resultX[j - 1]) / 2, (resultY[i + j * systemTask.n] + resultY[i + j * (systemTask.n - 1)]) / 2),
+                        Background = OxyColors.White,
+                        TextColor = OxyColors.Black,
+                        Layer = HiddenLayer
+
+                    });
                 }
 
-                if (e.Control && e.KeyCode == Keys.M)
+
+
+
+                plotModel.Series.Add(MylineSeries);
+
+                var plotView = new PlotView
                 {
-                    foreach (var annotation in plotModel.Annotations.OfType<MethodAnnotation>())
+                    Dock = DockStyle.Fill,
+                    Model = plotModel
+                };
+
+                var tabPage = new TabPage("Ctranica " + i);
+
+                tabPage.Controls.Add(plotView);
+                tabControl.TabPages.Add(tabPage);
+
+                //this.KeyPreview = true;
+                //this.KeyDown += (sender, e) =>
+                //{
+                //    if (e.Control && e.KeyCode == Keys.E)
+                //    {
+                //        foreach (var annotation in plotModel.Annotations.OfType<EpsAnnotation>())
+                //        {
+                //            annotation.Layer = annotation.Layer == HiddenLayer ? VisibleLayer : HiddenLayer;
+                //        }
+                //        plotModel.InvalidatePlot(true);
+                //    }
+
+                //    if (e.Control && e.KeyCode == Keys.M)
+                //    {
+                //        foreach (var annotation in plotModel.Annotations.OfType<MethodAnnotation>())
+                //        {
+                //            annotation.Layer = annotation.Layer == HiddenLayer ? VisibleLayer : HiddenLayer;
+                //        }
+                //        plotModel.InvalidatePlot(true);
+                //    }
+                //};
+
+            }
+
+
+        }
+
+        private void DrawSystemPlotTwo(DiffUrSolver.SystemTask systemTask, DiffUrSolver.SystemTask systemTask2)
+        {
+
+            TabControl tabControl = new TabControl();
+            tabControl.Dock = DockStyle.Fill;
+            this.Controls.Add(tabControl);
+
+            int size = 10000;
+            double[] resultX = new double[size];
+            double[] resultY = new double[size * systemTask.n];
+
+            int status = DiffUrSolver.DiffUrSolver.SolveDiffUrSystemArr(systemTask, resultY);
+
+            double[] resultX2 = new double[size];
+            double[] resultY2 = new double[size * systemTask.n];
+
+            int status2 = DiffUrSolver.DiffUrSolver.SolveDiffUrSystemArr(systemTask2, resultY2);
+
+            int k = 0;
+            while (systemTask.t0 + k * systemTask.h < systemTask.t1)
+            {
+                resultX[k] = systemTask.t0 + k * systemTask.h;
+                k++;
+            }
+
+            resultX[k] = systemTask.t1;
+
+            int resultSize = k+1;
+
+            k = 0;
+            while (systemTask2.t0 + k * systemTask2.h < systemTask2.t1)
+            {
+                resultX2[k] = systemTask2.t0 + k * systemTask2.h;
+                k++;
+            }
+
+            resultX2[k] = systemTask2.t1;
+
+            int resultSize2 = k+1;
+
+
+
+            for (int i = 0; i < systemTask.n; i++)
+            {
+                var plotModel = new PlotModel { Title = "" };
+
+                var MylineSeries = new LineSeries
+                {
+                    Title = "Method Solution",
+                    //MarkerType = MarkerType.Circle,
+                    MarkerSize = 3,
+                    MarkerStroke = OxyColors.Red,
+                    MarkerFill = OxyColors.Red,
+                    Color = OxyColors.Red,
+
+                };
+
+                var ReallineSeries = new LineSeries
+                {
+                    Title = "nearly exact solution",
+                    //MarkerType = MarkerType.Circle,
+                    MarkerSize = 3,
+                    MarkerStroke = OxyColors.Green,
+                    MarkerFill = OxyColors.Green,
+                    Color = OxyColors.Green,
+
+                };
+
+                MylineSeries.Points.Add(new DataPoint(resultX[0], resultY[i]));
+
+                for (int j = 1; j < resultSize; j++)
+                {
+                    MylineSeries.Points.Add(new DataPoint(resultX[j], resultY[i + j * systemTask.n]));
+
+                    plotModel.Annotations.Add(new MethodAnnotation
                     {
-                        annotation.Layer = annotation.Layer == HiddenLayer ? VisibleLayer : HiddenLayer;
-                    }
-                    plotModel.InvalidatePlot(true);
+                        Text = (resultX[j] - resultX[j - 1]).ToString(),
+                        TextPosition = new DataPoint((resultX[j] + resultX[j - 1]) / 2, (resultY[i + j * systemTask.n] + resultY[i + j * (systemTask.n - 1)]) / 2),
+                        Background = OxyColors.White,
+                        TextColor = OxyColors.Black,
+                        Layer = HiddenLayer
+
+                    });
                 }
-            };
+
+                ReallineSeries.Points.Add(new DataPoint(resultX2[0], resultY2[i]));
+
+                for (int j = 1; j < resultSize2; j++)
+                {
+                    ReallineSeries.Points.Add(new DataPoint(resultX2[j], resultY2[i + j * systemTask2.n]));
+
+                    plotModel.Annotations.Add(new MethodAnnotation
+                    {
+                        Text = (resultX2[j] - resultX2[j - 1]).ToString(),
+                        TextPosition = new DataPoint((resultX2[j] + resultX2[j - 1]) / 2, (resultY2[i + j * systemTask2.n] + resultY2[i + j * (systemTask2.n - 1)]) / 2),
+                        Background = OxyColors.White,
+                        TextColor = OxyColors.Black,
+                        Layer = HiddenLayer
+
+                    });
+                }
+
+                plotModel.IsLegendVisible = true;
+
+                Legend l = new Legend();
+
+                l.LegendPosition = LegendPosition.RightTop;
+                l.LegendPlacement = LegendPlacement.Outside;
+                l.LegendOrientation = LegendOrientation.Vertical;
+
+                plotModel.Legends.Add(l);
+
+
+
+                plotModel.Series.Add(MylineSeries);
+                plotModel.Series.Add(ReallineSeries);
+
+                var plotView = new PlotView
+                {
+                    Dock = DockStyle.Fill,
+                    Model = plotModel
+                };
+
+                var tabPage = new TabPage("Ctranica " + i);
+
+                tabPage.Controls.Add(plotView);
+                tabControl.TabPages.Add(tabPage);
+
+                //this.KeyPreview = true;
+                //this.KeyDown += (sender, e) =>
+                //{
+                //    if (e.Control && e.KeyCode == Keys.E)
+                //    {
+                //        foreach (var annotation in plotModel.Annotations.OfType<EpsAnnotation>())
+                //        {
+                //            annotation.Layer = annotation.Layer == HiddenLayer ? VisibleLayer : HiddenLayer;
+                //        }
+                //        plotModel.InvalidatePlot(true);
+                //    }
+
+                //    if (e.Control && e.KeyCode == Keys.M)
+                //    {
+                //        foreach (var annotation in plotModel.Annotations.OfType<MethodAnnotation>())
+                //        {
+                //            annotation.Layer = annotation.Layer == HiddenLayer ? VisibleLayer : HiddenLayer;
+                //        }
+                //        plotModel.InvalidatePlot(true);
+                //    }
+                //};
+
+            }
+
 
         }
 

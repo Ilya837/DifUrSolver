@@ -426,7 +426,7 @@ class Program
 
         while (start < task.t1)
         {
-            Console.WriteLine(result[j]);
+            Console.WriteLine(result[j* 2]);
             j++;
             start = task.t0 + j * task.h;
         }

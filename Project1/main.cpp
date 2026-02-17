@@ -406,9 +406,9 @@ void ex9(Methods m) {
 
     //SolveDiffUrSystemArr(x0, y0, x1, n, 0.0001, system, res, resSize, m);
 
-    for (int i = 0; i < 2; i++) {
+    /*for (int i = 0; i < 2; i++) {
         std::cout << res[resSize* n +i] << std::endl;
-    }
+    }*/
 }
 
 double systemf3(double x,const double* y) {
@@ -451,16 +451,81 @@ void testSystem(Methods m) {
 	}
 
     std::cout << tNow << " " << res[(i-1) * task.n] << std::endl;
+    std::cout << task.t1 << " " << res[i * task.n] << std::endl;
 
+}
+
+double SystemFunction1(double x, const double* y) {
+    return -0.04 * y[0] + 10000 * y[1] * y[2];
+}
+
+double SystemFunction2(double x, const double* y)
+{
+
+    return 0.04 * y[0] - 10000 * y[1] * y[2] - 30000000 * y[1] * y[1];
+}
+
+double SystemFunction3(double x, const double* y)
+{
+
+    return 30000000 * y[1] * y[1];
+}
+
+void ex10(double h, Methods method) {
+    SystemTask systemTask;
+
+    systemTask.t0 = 0.0;
+    systemTask.t1 = 0.3;
+    systemTask.h = h;
+    systemTask.n = 3;
+    systemTask.method = method;
+
+    double* y0 = new double[3];
+    y0[0] = 1;
+    y0[1] = 0;
+    y0[1] = 0;
+
+    systemTask.y0 = y0;
+
+    systemTask.f = new F1System[3]{ SystemFunction1, SystemFunction2, SystemFunction3 };
+
+    int size = 10000000;
+    double* resultX = new double[size];
+    double* resultY = new double[size * systemTask.n];
+
+    double time0 = omp_get_wtime();
+    int status = SolveDiffUrSystemArr(systemTask, resultY);
+    double time1 = omp_get_wtime();
+
+    int count = 0;
+
+    while (systemTask.t0 + systemTask.h * count < systemTask.t1) {
+        count++;
+    }
+    
+    std::cout << "res in t = " << systemTask.t1 << ": " << std::endl;
+
+    for (int i = 0; i < systemTask.n; i++) {
+
+        std::cout << "y" << i << " = " << resultY[systemTask.n * count + i] << std::endl;
+    }
+
+    std::cout << "step count: " << count << std::endl;
+
+    std::cout << "time : " << time1 - time0 << " sec" << std::endl;
 }
 
 int main()
 {
-    testSystem(BackEuler);
+    //testSystem(BackEuler);
     //ex1_5(RK4);
     //ex2();
     //ex3(Euler);
     //ex4();
     //ex6full();
     //ex9(RK4);
+    std::cout << "Back Euler:" << std::endl;
+    ex10(0.023, BackEuler);
+    std::cout << "Euler:" << std::endl;
+    ex10(0.0005, Euler);
 }

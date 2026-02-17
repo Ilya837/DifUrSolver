@@ -239,14 +239,21 @@ namespace DiffUrSolver
             double start = task.t0;
             int j = 0;
 
-            while (start < task.t1)
+            res[0] = resultY[0];
+            res[1] = resultY[1];
+
+            while (task.t0 + j * task.h < task.t1)
             {
-                res[j] =resultY[j*systemTask.n];
                 j++;
+                res[j * systemTask.n] =resultY[j*systemTask.n];
+                res[j * systemTask.n + 1] = resultY[j * systemTask.n + 1];
+
                 start = task.t0 + j* task.h;
             }
 
-            res = res.Append(resultY[j * systemTask.n]).ToArray();
+            j++;
+            res[j * systemTask.n] = resultY[j * systemTask.n];
+            res[j * systemTask.n + 1] = resultY[j * systemTask.n + 1];
 
             return 0;
         }
