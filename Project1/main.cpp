@@ -4,6 +4,7 @@
 #include <float.h>
 #include "../DiffUrSolverDll2/DiffUrSolverDLL2.h"
 #include "omp.h"
+#include <cmath>
 
 double func(double x, double y) {
     return cos(x);
@@ -386,28 +387,54 @@ double systemf2(double x,const double* y) {
     return 5 * y[0] + y[1];
 }
 
-void ex9(Methods m) {
+void ex9(double h, Methods method) {
 
-    double x0 = 0, x1 = 4;
-    double* y0 = new double[2];
-    y0[0] = y0[1] = 1;
-
-    int resSize = 0;
-    ui n = 2;
+    SetThreadCount(4);
     
+    SystemTask systemTask;
 
-    F1System* system = new F1System[2];
-    //system[0] = systemf1;
-    //system[1] = systemf2;
-
-    double* res = new double[20000000];
+    systemTask.t0 = 0.0;
+    systemTask.t1 = 4.0;
+    systemTask.h = h;
+    systemTask.n = 2;
+    systemTask.method = method;
     
+    double* y0 = new double[3];
+    y0[0] = 1;
+    y0[1] = 1;
 
+    systemTask.y0 = y0;
 
-    //SolveDiffUrSystemArr(x0, y0, x1, n, 0.0001, system, res, resSize, m);
+    systemTask.f = new F1System[3]{ systemf1, systemf2 };
 
-    /*for (int i = 0; i < 2; i++) {
-        std::cout << res[resSize* n +i] << std::endl;
+    int size = 1000000;
+    double* resultX = new double[size];
+    double* resultY = new double[size * systemTask.n];
+
+    double time0 = omp_get_wtime();
+    int status = SolveDiffUrSystemArr(systemTask, resultY);
+    double time1 = omp_get_wtime();
+
+    int count = 0;
+
+    while (systemTask.t0 + systemTask.h * count < systemTask.t1) {
+        count++;
+    }
+
+    std::cout << "res in t = " << systemTask.t1 << ": " << std::endl;
+
+    for (int i = 0; i < systemTask.n; i++) {
+
+        std::cout << "y" << i << " = " << resultY[systemTask.n * count + i] << std::endl;
+    }
+
+    std::cout << "step count: " << count << std::endl;
+
+    std::cout << "time : " << time1 - time0 << " sec" << std::endl;
+
+    /*std::cout << "full res: " << std::endl;
+    for (int i = 0; i < count * systemTask.n; i++) {
+        std::cout << resultY[i] << std::endl;
     }*/
 }
 
@@ -483,7 +510,7 @@ void ex10(double h, Methods method) {
     double* y0 = new double[3];
     y0[0] = 1;
     y0[1] = 0;
-    y0[1] = 0;
+    y0[2] = 0;
 
     systemTask.y0 = y0;
 
@@ -513,6 +540,11 @@ void ex10(double h, Methods method) {
     std::cout << "step count: " << count << std::endl;
 
     std::cout << "time : " << time1 - time0 << " sec" << std::endl;
+
+    /*std::cout << "full res: " << std::endl;
+    for (int i = 0; i < count * systemTask.n; i++) {
+        std::cout << resultY[i] << std::endl;
+    }*/
 }
 
 int main()
@@ -524,8 +556,10 @@ int main()
     //ex4();
     //ex6full();
     //ex9(RK4);
-    std::cout << "Back Euler:" << std::endl;
-    ex10(0.023, BackEuler);
-    std::cout << "Euler:" << std::endl;
-    ex10(0.0005, Euler);
+    //std::cout << "Back Euler:" << std::endl;
+    //ex9(0.0005, Euler);
+    //std::cout << "Back Euler:" << std::endl;
+    ex9(0.01, BackEuler);
+    /*std::cout << "Euler:" << std::endl;
+    ex10(0.0005, Euler);*/
 }

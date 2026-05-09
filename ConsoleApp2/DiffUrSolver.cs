@@ -120,6 +120,12 @@ namespace DiffUrSolver
         public static extern int SolveDiffUr( Task task, ref double res);
 
         [DllImport(dllPath, CallingConvention = CallingConvention.Cdecl)]
+        public static extern void InitMemory(uint n);
+
+        [DllImport(dllPath, CallingConvention = CallingConvention.Cdecl)]
+        public static extern void SetThreadCount(uint n);
+
+        [DllImport(dllPath, CallingConvention = CallingConvention.Cdecl)]
         public static extern int SolveDiffUrAutoH(Task task, ref double res);
 
         [DllImport(dllPath, CallingConvention = CallingConvention.Cdecl)]

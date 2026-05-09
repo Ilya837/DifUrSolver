@@ -20,6 +20,27 @@ enum Methods
 
 static struct MemoryTmp {
 
+	static double* stepArr;
+	static ui NstepArr;
+	static void initStepArr(ui n) {
+		if (n > NstepArr) {
+			delete[] stepArr;
+			stepArr = new double[n];
+			NstepArr = n;
+		}
+	}
+
+	static ui* arrUI1;
+	static ui NarrUI1;
+	static void initArrUI1(ui n) {
+		if (n > NarrUI1) {
+			delete[] arrUI1;
+			arrUI1 = new ui[n];
+			NarrUI1 = n;
+		}
+	}
+
+
 	static double* arr1;
 	static ui Narr1;
 	static void initArr1(ui n) {
@@ -39,6 +60,17 @@ static struct MemoryTmp {
 			Narr2 = n;
 		}
 	}
+
+	static double* arr3;
+	static ui Narr3;
+	static void initArr3(ui n) {
+		if (n > Narr3) {
+			delete[] arr3;
+			arr3 = new double[n];
+			Narr3 = n;
+		}
+	}
+
 
 	static double* matrix1;
 	static ui Nmatrix1;
@@ -96,6 +128,10 @@ extern "C" {
         Methods method;
 
     };
+
+	DIFFURSOLVERDLL_API void InitMemory(ui n);
+
+	DIFFURSOLVERDLL_API void SetThreadCount(ui n);
 
     DIFFURSOLVERDLL_API int SolveDiffUr(const Task& task, double& res);
 

@@ -6,17 +6,25 @@
 #include <cmath>
 #include <algorithm>
 #include <vector>
+#include <limits>
 #include <functional>
+#include <omp.h>
 
 typedef std::vector<std::function<double(double*)>> DiffFSystem;
 
+double* MemoryTmp::stepArr = nullptr;
+ui* MemoryTmp::arrUI1 = nullptr;
 double* MemoryTmp::arr1 = nullptr;
 double* MemoryTmp::arr2 = nullptr;
+double* MemoryTmp::arr3 = nullptr;
 double* MemoryTmp::matrix1 = nullptr;
 double* MemoryTmp::matrix2 = nullptr;
 
+ui MemoryTmp::NstepArr = 0;
+ui MemoryTmp::NarrUI1 = 0;
 ui MemoryTmp::Narr1 = 0;
 ui MemoryTmp::Narr2 = 0;
+ui MemoryTmp::Narr3 = 0;
 ui MemoryTmp::Nmatrix1 = 0;
 ui MemoryTmp::Nmatrix2 = 0;
 
@@ -238,22 +246,34 @@ void RK4SystemStep(double x0,const double* y0, double* yStep, ui n, double h, F1
 
 }
 
-double* J( double* y, double* res, double* tmpY, ui n, DiffFSystem f) {
-	double exp = 1e-12;
-	
-	double* copy = tmpY;
-	std::copy(y, y + n, copy);
+void J( double* y, double* res, ui n, DiffFSystem f) {
+	double exp = 1e-8;
 
-	for (int i = 0; i < n; i++) {
-		double tmp = f[i](y);
+	#pragma omp parallel
+	{
+		double* copy_plus = new double[n];
+		std::copy(y, y + n, copy_plus);
+
+		double* copy_minus = new double[n];
+		std::copy(y, y + n, copy_minus);
+
+		#pragma omp for
 		for (int j = 0; j < n; j++) {
-			copy[j] += exp;
-			res[i * n + j] = (f[i]( copy) - tmp) / exp;
-			copy[j] = y[j];
-		}
-	}
+			copy_plus[j] += exp;
+			copy_minus[j] -= exp;
+			for (int i = 0; i < n; i++) {
+				double f_plus = f[i](copy_plus);
+				double f_minus = f[i](copy_minus);
+				res[i * n + j] = (f_plus - f_minus) / (2 * exp);
+			}
+			copy_plus[j] = y[j];
+			copy_minus[j] = y[j];
 
-	return res;
+		}
+
+		delete[] copy_plus;
+		delete[] copy_minus;
+	}
 }
 
 // will break original matrix
@@ -271,19 +291,15 @@ void InverseMatrix(double* matrix, double* tmp, ui n) {
 		tmp2[i] = tmp + i * n;
 	}
 
-	/*for (ui i = 0; i < n; i++) {
-		for (ui j = 0; j < n; j++) {
-			std::cout << matrix2[i][j]<< " ";
-		}
-		std::cout << std::endl;
-	}*/
-
-
 	for (ui i = 0; i < n; i++) {
 
 		ui j = i;
-		for (j = i; j < n; j++) {
+		for (; j < n; j++) {
 			if (matrix2[j][i] != 0) break;
+		}
+
+		if (j == n) {
+			return;
 		}
 
 		if (j != i) {
@@ -322,38 +338,220 @@ void InverseMatrix(double* matrix, double* tmp, ui n) {
 		}
 	}
 
+}
+
+void LU(double* A, double* res, ui n) {
+
+	std::copy(A, A + n * n, res);
+
+#pragma omp parallel
+	{
+
+	#pragma omp for schedule(static,1)
+		for (int i = 0; i < n; i++) {
+			for (int j = 0; j < i; j++) {
+				res[i * n + j] /= res[i * n + i];
+			}
+		}
+
+		for (int i = 0; i < n; i++) {
+			for (int j = 0; j < i; j++) {
+			#pragma omp for
+				for (int k = i; k < i; k++) {
+					res[i * n + k] -= res[i * n + j] * res[j * n + k];
+				}
+			}
+		}
+	}
+
+}
+
+void countP(ui* P, double* A, ui n) {
+	double global_max = 0;
+	ui global_idx = 0;
 
 
+	for (int i = 0; i < n; i++) {
+		P[i] = i;
+	}
 
-	/*if (n == 2) {
-		double det = matrix[0] * matrix[3] - matrix[1] * matrix[2];
-		res[0] = matrix[3] / det;
-		res[1] = -matrix[1] / det;
-		res[2] = -matrix[2] / det;
-		res[3] = matrix[0] / det;
-		return;
-	}*/
+#pragma omp parallel if( n > 5000) 
+	{
+
+		for (int i = 0; i < n; i++) {
+
+			double local_max = 0;
+			ui local_idx = 0;
+
+#pragma omp for 
+			for (int j = i; j < n; j++) {
+				if (std::abs(A[P[j] * n + i]) > local_max) {
+					local_max = std::abs(A[P[j] * n + i]);
+					local_idx = j;
+				}
+			}
+
+#pragma omp barrier
+
+#pragma omp critical
+			{
+				if (local_max > global_max) {
+					global_max = local_max;
+					global_idx = local_idx;
+				}
+			}
+
+#pragma omp single
+			{
+				if (i != local_idx) {
+					std::swap(P[i], P[local_idx]);
+				}
+			}
+
+#pragma omp barrier
+
+		}
+	}
+
+
+}
+
+void  countLU(ui start, ui finish, double* LUMatrix, ui n) {
+	for (int i = start; i < finish; i++) {
+
+		for (int l = start; l < i; l++) {
+			for (int k = i; k < finish; k++) {
+				LUMatrix[i * n + k] -= LUMatrix[l * n + k] * LUMatrix[i * n + l];
+			}
+		}
+
+		for (int k = i + 1; k < finish; k++) {
+
+			for (int l = start; l < i; l++) {
+				LUMatrix[k * n + i] -= LUMatrix[k * n + l] * LUMatrix[l * n + i];
+			}
+
+			LUMatrix[k * n + i] /= LUMatrix[i * n + i];
+		}
+	}
+}
+
+void countU(ui start, ui finish, double* LUMatrix, ui n) {
+
+	for (int i = start; i < finish; i++) {
+		for (int k = start; k < i; k++) {
+#pragma omp parallel for schedule(static)
+			for (int j = finish; j < n; j++) {
+				LUMatrix[i * n + j] -= LUMatrix[i * n + k] * LUMatrix[k * n + j];
+			}
+		}
+	}
+}
+
+void countL(ui start, ui finish, double* LUMatrix, ui n) {
+
+	for (int j = start; j < finish; j++) {
+#pragma omp parallel for
+		for (int i = finish; i < n; i++) {
+			for (int k = start; k < j; k++) {
+
+
+				LUMatrix[i * n + j] -= LUMatrix[i * n + k] * LUMatrix[k * n + j];
+			}
+			LUMatrix[i * n + j] /= LUMatrix[j * n + j];
+		}
+	}
+}
+
+void countA(ui start, ui finish, double* LUMatrix, ui n) {
+
+#pragma omp parallel for
+	for (int i = finish; i < n; i++) {
+		for (int k = start; k < finish; k++) {
+			for (int j = finish; j < n; j++) {
+				LUMatrix[i * n + j] -= LUMatrix[i * n + k] * LUMatrix[k * n + j];
+			}
+		}
+	}
+
+}
+
+void PLU(double* A, ui* P, double* LUMatrix, ui n, ui block_size) {
+
+	countP(P, A, n);
+
+#pragma omp parallel for num_threads(2)
+	for (int i = 0; i < n; i++) {
+		std::copy(A + P[i] * n, A + P[i] * n + n, LUMatrix + i * n);
+	}
+
+	int stage = 0;
+
+	for (stage = 0; n - stage * block_size >= block_size; stage++) {
+
+		int start = stage * block_size;
+
+		countLU(start, start + block_size, LUMatrix, n);
+
+		countU(start, start + block_size, LUMatrix, n);
+
+		countL(start, start + block_size, LUMatrix, n);
+
+		countA(start, start + block_size, LUMatrix, n);
+
+	}
+
+	int start = stage * block_size;
+
+	countLU(start, n, LUMatrix, n);
+	
+}
+
+void Axb(double* A,double* b, double* res, ui n) {
+
+	double* LUmatrix = MemoryTmp::matrix2;
+
+	ui* P = MemoryTmp::arrUI1;
+
+	PLU(A, P, LUmatrix, n,8);
+
+	double* y = MemoryTmp::arr2;
+
+	for (int i = 0; i < n; i++) {
+		y[i] = b[P[i]];
+
+		for (int j = 0; j < i; j++) {
+			y[i] -= y[j] * LUmatrix[i * n + j];
+		}
+	}
+
+	for (int i = n - 1; i >= 0; i--) {
+		res[i] = y[i];
+
+		for (int j = i + 1; j < n; j++) {
+			res[i] -= LUmatrix[i * n + j] * res[j];
+		}
+
+		res[i] /= LUmatrix[i * n + i];
+	}
 
 }
 
 void BackEulerSystemStep(double x0, const double* y0, double* yStep, ui n, double h, F1System* f) {
 	double diff_lim = 1e-12;
-	int max_iter = 10000;
+	int max_iter = 10;
 	double x_next = x0 + h;
 
-	double* stepTmp = MemoryTmp::arr1;
-	double* matrixTmp1 = MemoryTmp::matrix1;
-	double* matrixTmp2 = MemoryTmp::matrix2;
-
-	for (ui i = 0; i < n; i++) {
-		yStep[i] = y0[i] + h * f[i](x0, y0);
-		stepTmp[i] = yStep[i];
-	}
+	double* A = MemoryTmp::matrix1;
 
 	double sum = 0;
-	double eps = 1e-12;
+	double eps = 1e-6;
 
 	DiffFSystem system(n);
+
+	for (int i = 0; i < n; i++) {
+		yStep[i] = y0[i] + h * f[i](x0,y0);
+	}
 
 	for (int i = 0; i < n; i++) {
 		system[i] = [&,i](double* yy) {
@@ -361,23 +559,25 @@ void BackEulerSystemStep(double x0, const double* y0, double* yStep, ui n, doubl
 			};
 	}
 
+	double* b = MemoryTmp::arr1;
+
+	double* stepdel = MemoryTmp::arr3;
 
 	for (int i = 0; i < max_iter; i++) {
 
-		J(yStep, matrixTmp1, stepTmp, n, system);
-		InverseMatrix(matrixTmp1, matrixTmp2, n);
+		J(yStep, A, n, system);
 
-		for (int j = 0; j < n; j++) {
-			for (int k = 0; k < n; k++) {
-				stepTmp[j] -= system[k](yStep) * matrixTmp1[j*n+k];
-			}
+		for (int i = 0; i < n; i++) {
+			b[i] = -system[i](yStep);
 		}
 
-		std::copy(stepTmp, stepTmp + n, yStep);
+		Axb(A, b, stepdel, n);
 
+		for (int j = 0; j < n; j++) {
+			yStep[j] += stepdel[j];
+		}
 
 		bool flag = false;
-
 
 		for (ui j = 0; j < n; j++) {
 			double diff = std::abs(yStep[j] - h * f[j](x_next, yStep) - y0[j]);
@@ -398,6 +598,20 @@ void BackEulerSystemStep(double x0, const double* y0, double* yStep, ui n, doubl
 }
 
 extern "C" {
+
+	DIFFURSOLVERDLL_API void InitMemory(ui n) {
+		MemoryTmp::initStepArr(n);
+		MemoryTmp::initArrUI1(n);
+		MemoryTmp::initArr1(n);
+		MemoryTmp::initArr2(n);
+		MemoryTmp::initArr3(n);
+		MemoryTmp::initMatrix1(n);
+		MemoryTmp::initMatrix2(n);
+	}
+
+	DIFFURSOLVERDLL_API void SetThreadCount(ui n) {
+		omp_set_num_threads(n);
+	}
 	
 	DIFFURSOLVERDLL_API int SolveDiffUr(const Task& task, double& res)
 	{
@@ -738,7 +952,8 @@ extern "C" {
 
 	DIFFURSOLVERDLL_API int SolveDiffUrSystem(const SystemTask &task, double* res)
 	{
-		double* yStep = new double[task.n];
+		MemoryTmp::initStepArr(task.n);
+		double* yStep = MemoryTmp::stepArr;
 		int k = 0;
 		double tNow = task.t0;
 
@@ -770,13 +985,14 @@ extern "C" {
 		case BackEuler: {
 
 			MemoryTmp::initArr1(task.n);
+			MemoryTmp::initArr2(task.n);
+			MemoryTmp::initArr3(task.n);
 			MemoryTmp::initMatrix1(task.n);
 			MemoryTmp::initMatrix2(task.n);
 			stepF = &BackEulerSystemStep;
 			break;
 		}
 		default: {
-			delete[] yStep;
 			return -1;
 			break;
 		}
@@ -798,13 +1014,13 @@ extern "C" {
 			res[i] += yStep[i];
 		}
 
-		delete[] yStep;
 		return 0;
 	}
 
 	DIFFURSOLVERDLL_API int SolveDiffUrSystemArr(const SystemTask& task, double* res)
 	{
-		double* yStep = new double[task.n];
+		MemoryTmp::initStepArr(task.n);
+		double* yStep = MemoryTmp::stepArr;
 		
 		int k = 0;
 		double tNow = task.t0;
@@ -840,13 +1056,15 @@ extern "C" {
 		case BackEuler: {
 
 			MemoryTmp::initArr1(task.n);
+			MemoryTmp::initArr2(task.n);
+			MemoryTmp::initArr3(task.n);
+			MemoryTmp::initArrUI1(task.n);
 			MemoryTmp::initMatrix1(task.n);
 			MemoryTmp::initMatrix2(task.n);
 			stepF = &BackEulerSystemStep;
 			break;
 		}
 		default:
-			delete[] yStep;
 			return -1;
 			break;
 		}
@@ -868,7 +1086,6 @@ extern "C" {
 			res[k * task.n + i] = res[(k - 1) * task.n + i] + yStep[i];
 		}
 
-		delete[] yStep;
 
 		return 0;
 	}
