@@ -507,7 +507,7 @@ class Program
         DiffUrSolver.DiffUrSolver.SetThreadCount(treadCount);
         DiffUrSolver.SystemTask systemTask = new DiffUrSolver.SystemTask();
 
-        uint n = 100;
+        uint n = 500;
 
         BrusselatorSystem b = CreateBrusselatorSystem(((int)n), 0.02);
 
@@ -522,7 +522,7 @@ class Program
 
         int size1 = (int)Math.Round((systemTask.t1 - systemTask.t0) / systemTask.h) + 10;
         //double[] resultX = new double[size1];
-        double[] resultY = new double[size1 * systemTask.n];
+        double[] resultY = new double[systemTask.n];
 
         Stopwatch stopwatch = new Stopwatch();
 
@@ -530,11 +530,17 @@ class Program
 
         stopwatch.Start();
 
-        int status = DiffUrSolver.DiffUrSolver.SolveDiffUrSystemArr(systemTask, resultY);
+        int status = DiffUrSolver.DiffUrSolver.SolveDiffUrSystem(systemTask, resultY);
 
         stopwatch.Stop();
 
         System.Console.WriteLine(stopwatch.ElapsedMilliseconds);
+        System.Console.WriteLine("result:");
+
+        for (int i = 0; i < systemTask.n; i++)
+        {
+            Console.WriteLine(resultY[i]);
+        }
 
     }
 
@@ -556,7 +562,9 @@ class Program
 
         //experiment4(Methods.Euler);
 
-        experiment6(0.001, Methods.BackEuler, 1);
+        experiment6(0.00001, Methods.Euler, 1);
+
+        //experiment6(0.02, Methods.BackEuler, 4);
 
         //for (uint i = 1; i <= 4; i++) {
         //    experiment6(0.02, Methods.BackEuler, i);

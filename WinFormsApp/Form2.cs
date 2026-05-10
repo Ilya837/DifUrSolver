@@ -38,7 +38,7 @@ namespace WinFormsApp
 
             //example5(0.3, Methods.BackEuler, 0.0001, Methods.RK4);
 
-            //example6(0.002, Methods.Euler,0.001,Methods.RK4);
+            //example6(0.001, Methods.Euler,0.001,Methods.RK4);
 
             example6(0.02, Methods.BackEuler, 0.001, Methods.RK4);
         }
@@ -350,11 +350,15 @@ namespace WinFormsApp
 
         public void example6(double h, Methods method, double h2, Methods method2)
         {
-            DiffUrSolver.DiffUrSolver.SetThreadCount(1);
+            uint n = 100;
+
+            DiffUrSolver.DiffUrSolver.SetThreadCount(4);
+            DiffUrSolver.DiffUrSolver.InitMemory(n);
+
             DiffUrSolver.SystemTask systemTask1 = new DiffUrSolver.SystemTask();
             DiffUrSolver.SystemTask systemTask2 = new DiffUrSolver.SystemTask();
 
-            uint n = 100;
+            
 
             BrusselatorSystem b = CreateBrusselatorSystem(((int)n), 0.02);
 
@@ -1016,7 +1020,7 @@ namespace WinFormsApp
 
             Stopwatch stopwatch = new Stopwatch();
 
-            DiffUrSolver.DiffUrSolver.InitMemory(systemTask.n);
+            
 
             stopwatch.Start();
 

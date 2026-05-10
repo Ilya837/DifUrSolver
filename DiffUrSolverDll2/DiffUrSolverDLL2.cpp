@@ -417,59 +417,103 @@ void countP(ui* P, double* A, ui n) {
 }
 
 void  countLU(ui start, ui finish, double* LUMatrix, ui n) {
+
 	for (int i = start; i < finish; i++) {
 
+		double* i_row = &LUMatrix[i * n];
+
 		for (int l = start; l < i; l++) {
+
+			double* l_row = &LUMatrix[l * n];
+
+			const double tmp = i_row[l];
+
 			for (int k = i; k < finish; k++) {
-				LUMatrix[i * n + k] -= LUMatrix[l * n + k] * LUMatrix[i * n + l];
+				i_row[k] -= l_row[k] * tmp;
 			}
 		}
 
 		for (int k = i + 1; k < finish; k++) {
 
+			double* k_row = &LUMatrix[k * n];
+
 			for (int l = start; l < i; l++) {
-				LUMatrix[k * n + i] -= LUMatrix[k * n + l] * LUMatrix[l * n + i];
+				k_row[i] -= k_row[l] * LUMatrix[l * n + i];
 			}
 
-			LUMatrix[k * n + i] /= LUMatrix[i * n + i];
+			k_row[i] /= i_row[i];
 		}
 	}
 }
 
-void countU(ui start, ui finish, double* LUMatrix, ui n) {
+void countU(ui i1, ui i2, ui j1, ui j2, double* LUMatrix, ui n) {
 
-	for (int i = start; i < finish; i++) {
-		for (int k = start; k < i; k++) {
-#pragma omp parallel for schedule(static)
-			for (int j = finish; j < n; j++) {
-				LUMatrix[i * n + j] -= LUMatrix[i * n + k] * LUMatrix[k * n + j];
+	if (j2 > n)	j2 = n;
+
+	double sum = 0;
+
+	for (int i = i1; i < i2; i++) {
+
+		double* row_i = LUMatrix + i * n;
+
+		for (int k = i1; k < i; k++) {
+
+			double* row_k = LUMatrix + k * n;
+
+			const double tmp = row_i[k];
+
+			for (int j = j1; j < j2; j++) {
+				row_i[j] -= tmp * row_k[j];
 			}
+
 		}
 	}
+
+
 }
 
-void countL(ui start, ui finish, double* LUMatrix, ui n) {
+void countL(ui i1, ui i2, ui j1, ui j2, double* LUMatrix, ui n) {
 
-	for (int j = start; j < finish; j++) {
-#pragma omp parallel for
-		for (int i = finish; i < n; i++) {
-			for (int k = start; k < j; k++) {
+	if (i2 > n) i2 = n;
+	double  sum = 0;
 
+	for (int j = j1; j < j2; j++) {
 
-				LUMatrix[i * n + j] -= LUMatrix[i * n + k] * LUMatrix[k * n + j];
+		double* row_j = &LUMatrix[j * n];
+
+		for (int i = i1; i < i2; i++) {
+
+			double* row_i = &LUMatrix[i * n];
+			sum = 0;
+
+			for (int k = j1; k < j; k++) {
+				sum += row_i[k] * LUMatrix[k * n + j];
 			}
-			LUMatrix[i * n + j] /= LUMatrix[j * n + j];
+
+			row_i[j] = (row_i[j] - sum) / row_j[j];
 		}
 	}
+
 }
 
-void countA(ui start, ui finish, double* LUMatrix, ui n) {
+void countA(ui i1, ui i2, ui j1, ui  j2, ui k1, ui k2, double* LUMatrix, ui n) {
 
-#pragma omp parallel for
-	for (int i = finish; i < n; i++) {
-		for (int k = start; k < finish; k++) {
-			for (int j = finish; j < n; j++) {
-				LUMatrix[i * n + j] -= LUMatrix[i * n + k] * LUMatrix[k * n + j];
+	if (i2 > n) i2 = n;
+	if (j2 > n) j2 = n;
+	if (k2 > n) k2 = n;
+
+	for (int i = i1; i < i2; i++) {
+
+		double* row_i = &LUMatrix[i * n];
+
+		for (int k = k1; k < k2; k++) {
+
+			double* row_k = &LUMatrix[k * n];
+
+			const double tmp = row_i[k];
+
+			for (int j = j1; j < j2; j++) {
+				row_i[j] -= tmp * row_k[j];
 			}
 		}
 	}
@@ -487,17 +531,34 @@ void PLU(double* A, ui* P, double* LUMatrix, ui n, ui block_size) {
 
 	int stage = 0;
 
-	for (stage = 0; n - stage * block_size >= block_size; stage++) {
+	for (stage = 0; (stage + 1) * block_size < n; stage++) {
 
 		int start = stage * block_size;
 
 		countLU(start, start + block_size, LUMatrix, n);
 
-		countU(start, start + block_size, LUMatrix, n);
+#pragma omp parallel
+		{
+#pragma omp for nowait schedule(dynamic, 1)
+			for (int j1 = start + block_size; j1 < n; j1 += block_size) {
+				countU(start, start + block_size, j1, j1 + block_size, LUMatrix, n);
+			}
 
-		countL(start, start + block_size, LUMatrix, n);
+#pragma omp for schedule(dynamic, 1)
+			for (int i1 = start + block_size; i1 < n; i1 += block_size) {
 
-		countA(start, start + block_size, LUMatrix, n);
+				countL(i1, i1 + block_size, start, start + block_size, LUMatrix, n);
+			}
+
+
+#pragma omp for collapse(2)  schedule(dynamic, 1)
+			for (int i1 = start + block_size; i1 < n; i1 += block_size) {
+				for (int j1 = start + block_size; j1 < n; j1 += block_size) {
+					countA(i1, i1 + block_size, j1, j1 + block_size, start, start + block_size, LUMatrix, n);
+				}
+			}
+
+		}
 
 	}
 
@@ -513,26 +574,36 @@ void Axb(double* A,double* b, double* res, ui n) {
 
 	ui* P = MemoryTmp::arrUI1;
 
-	PLU(A, P, LUmatrix, n,8);
+	PLU(A, P, LUmatrix, n,80);
 
 	double* y = MemoryTmp::arr2;
 
 	for (int i = 0; i < n; i++) {
 		y[i] = b[P[i]];
 
+		double sum = 0;
+
+		double* row_i = &LUmatrix[i * n];
+
 		for (int j = 0; j < i; j++) {
-			y[i] -= y[j] * LUmatrix[i * n + j];
+			sum += y[j] * row_i[j];
 		}
+
+		y[i] -= sum;
 	}
 
 	for (int i = n - 1; i >= 0; i--) {
 		res[i] = y[i];
 
+		double sum = 0;
+
+		double* row_i = &LUmatrix[i * n];
+
 		for (int j = i + 1; j < n; j++) {
-			res[i] -= LUmatrix[i * n + j] * res[j];
+			sum += row_i[j] * res[j];
 		}
 
-		res[i] /= LUmatrix[i * n + i];
+		res[i] = (res[i] - sum) / row_i[i];
 	}
 
 }
