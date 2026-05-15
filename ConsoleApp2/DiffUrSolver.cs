@@ -13,7 +13,8 @@ namespace DiffUrSolver
         Euler,
         RK2,
         RK4,
-        BackEuler
+        BackEuler,
+        RadoIIA
     }
 
     [UnmanagedFunctionPointer(CallingConvention.Cdecl)]

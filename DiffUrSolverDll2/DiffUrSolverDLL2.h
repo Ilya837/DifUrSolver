@@ -15,7 +15,8 @@ enum Methods
     Euler,
     RK2,
     RK4,
-    BackEuler
+    BackEuler,
+	RadoIIA
 };
 
 static struct MemoryTmp {
@@ -93,6 +94,16 @@ static struct MemoryTmp {
 	}
 };
 
+static struct Config {
+	static ui block_size;
+
+	static void SetBlockSize(ui n) {
+		if (n > 0) {
+			block_size = n;
+		}
+	}
+};
+
 extern "C" {
 
    
@@ -132,6 +143,8 @@ extern "C" {
 	DIFFURSOLVERDLL_API void InitMemory(ui n);
 
 	DIFFURSOLVERDLL_API void SetThreadCount(ui n);
+
+	DIFFURSOLVERDLL_API void SetBlockSizeCount(ui n);
 
     DIFFURSOLVERDLL_API int SolveDiffUr(const Task& task, double& res);
 

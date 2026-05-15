@@ -547,6 +547,36 @@ void ex10(double h, Methods method) {
     }*/
 }
 
+
+double func3(double x, double y) {
+    return -1000000 * (y - sin(x)) + cos(x);
+}
+
+double realFunc3(double x) {
+    return sin(x);
+}
+
+void expetiment11(double h, Methods method ) {
+
+    Task task = Task{};
+
+    task.h = h;
+    task.method = method;
+    task.x0 = 0;
+    task.y0 = realFunc3(task.x0);
+    task.x1 = 10;
+
+    task.f = new F1(func3);
+
+    int size = (int)((task.x1 - task.x0) / h) + 10;
+
+    double* res = new double[size];
+
+
+    int status = SolveDiffUrArr(task, res);
+
+}
+
 int main()
 {
     //testSystem(BackEuler);
@@ -559,7 +589,10 @@ int main()
     //std::cout << "Back Euler:" << std::endl;
     //ex9(0.0005, Euler);
     //std::cout << "Back Euler:" << std::endl;
-    ex9(0.01, BackEuler);
+    //ex9(0.01, BackEuler);
     /*std::cout << "Euler:" << std::endl;
     ex10(0.0005, Euler);*/
+
+    expetiment11( 0.001, RadoIIA);
+
 }

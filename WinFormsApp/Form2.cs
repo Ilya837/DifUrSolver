@@ -20,7 +20,11 @@ namespace WinFormsApp
         {
             InitializeComponent();
 
-            //example1();
+            example1(Methods.RadoIIA,100);
+
+            //example1(Methods.BackEuler, 100);
+
+            //example1(Methods.RK4, 0.000001); // С таким шагом - считает.
 
             //example2();
 
@@ -38,33 +42,37 @@ namespace WinFormsApp
 
             //example5(0.3, Methods.BackEuler, 0.0001, Methods.RK4);
 
-            //example6(0.001, Methods.Euler,0.001,Methods.RK4);
+            //example6(0.001, Methods.RK4);
 
-            example6(0.02, Methods.BackEuler, 0.001, Methods.RK4);
+            //example6(0.0001, Methods.Euler, 0.001, Methods.RK4);
+
+            //example6(0.01, Methods.Euler, 0.01, Methods.RK4);
         }
 
 
-        public void example1()
+        public void example1(Methods method, double h)
         {
             DiffUrSolver.Task task = new DiffUrSolver.Task();
 
             task.x0 = 0.0;
-            task.y0 = RealSampleFunction4(task.x0);
-            task.x1 = 2.0;
+            task.y0 = RealSampleFunction6(task.x0);
+            task.x1 = 100.0;
 
 
-            task.f = DiffUrSolver.DiffUrSolver.F1ToIntPtr(SampleFunction4);
+            task.f = DiffUrSolver.DiffUrSolver.F1ToIntPtr(SampleFunction6);
 
 
-            task.h = 0.04;
-            task.method = Methods.Euler;
+            task.h = h;
+            task.method = method;
 
             //task.h = 2;
             //task.method = Methods.BackEuler;
 
-            string title = "y'  = -50(y-cos(x))";
+            //string title = "y'  = -50(y-cos(x))";
 
-            DrawPlot(task, RealSampleFunction4,title);
+            string title = "y'  = -1000000 (y - sin(x)) + cos(x)";
+
+            DrawPlot(task, RealSampleFunction6, title);
         }
         
         public void example2()
@@ -268,54 +276,246 @@ namespace WinFormsApp
             public double t0;
             public int status;
         }
-        static BrusselatorSystem CreateBrusselatorSystem(int n, double a)
+        static BrusselatorSystem CreateBrusselatorSystem(int Nx,int Ny, double a)
         {
+
+            //BrusselatorSystem res = new BrusselatorSystem();
+
+            //if (n < 1)
+            //{
+
+            //    res.status = -1;
+            //    return res;
+            //}
+
+            //F1System[] system = new F1System[n * 2];
+            //double[] y = new double[2 * n];
+
+            //for (int i = 0; i < n; i++)
+            //{
+
+            //    int i1 = (n + i - 1) % n;
+            //    int i2 = i;
+            //    int i3 = (n + i + 1) % n;
+
+            //    F1System u = (double x, IntPtr y) =>
+            //    {
+            //        double[] array = new double[2 * n];
+            //        Marshal.Copy(y, array, 0, 2 * n);
+
+            //        return 1 + array[i2 * 2] * array[i2 * 2] * array[i2 * 2 + 1] -
+            //        4 * array[i2 * 2] + a * (n + 1) * (n + 1) *
+            //        (array[i1 * 2] - 2 * array[i2 * 2] + array[i3 * 2]);
+            //    };
+
+            //    F1System v = (double x, IntPtr y) =>
+            //    {
+            //        double[] array = new double[2 * n];
+            //        Marshal.Copy(y, array, 0, 2 * n);
+
+            //        return 3 * array[i2 * 2] - array[i2 * 2] * array[i2 * 2] * array[i2 * 2 + 1] +
+            //        a * (n + 1) * (n + 1) *
+            //        (array[i1 * 2 + 1] - 2 * array[i2 * 2 + 1] + array[i3 * 2 + 1]);
+            //    };
+
+            //    system[i * 2] = u;
+            //    system[i * 2 + 1] = v;
+
+            //    y[i * 2] = 1 + Math.Sin(2 * Math.PI * i / n);
+            //    y[i * 2 + 1] = 3;
+
+            //}
+
+            //res.status = 0;
+            //res.f = DiffUrSolver.DiffUrSolver.F1SystemToIntPtr(system);
+            //res.y0 = DiffUrSolver.DiffUrSolver.DoubleArrayToIntPtr(y);
+            //res.t0 = 0;
+
+
+            //return res;
 
             BrusselatorSystem res = new BrusselatorSystem();
 
-            if (n < 1)
-            {
+            
 
-                res.status = -1;
-                return res;
+            int N = Nx * Ny;
+            int TotalSize = 2 * N;
+
+            F1System[] system = new F1System[TotalSize];
+            double[] y = new double[TotalSize];
+
+            double A = 1.0;
+            double B = 3.0;
+
+            double Du = 1e-5;
+            double Dv = 1e-1;
+
+            double hx = 1.0 / (Nx - 1);
+            double hy = 1.0 / (Ny - 1);
+
+            double hx2 = hx * hx;
+            double hy2 = hy * hy;
+
+            int U(int i, int j)
+            {
+                return i + j * Nx;
             }
 
-            F1System[] system = new F1System[n * 2];
-            double[] y = new double[2 * n];
-
-            for (int i = 0; i < n; i++)
+            int V(int i, int j)
             {
+                return N + i + j * Ny;
+            }
 
-                int i1 = (n + i - 1) % n;
-                int i2 = i;
-                int i3 = (n + i + 1) % n;
+            //---------------------------------------------------------
+            // Границы Неймана
+            //---------------------------------------------------------
 
-                F1System u = (double x, IntPtr y) =>
+            int ClampX(int i)
+            {
+                if (i < 0) return 0;
+                if (i >= Nx) return Nx - 1;
+                return i;
+            }
+
+            int ClampY(int j)
+            {
+                if (j < 0) return 0;
+                if (j >= Ny) return Ny - 1;
+                return j;
+            }
+
+            //---------------------------------------------------------
+            // Лапласиан
+            //---------------------------------------------------------
+
+            double Laplace(double[] y, int idx, int i, int j)
+            {
+                int il = ClampX(i - 1);
+                int ir = ClampX(i + 1);
+
+                int jb = ClampY(j - 1);
+                int jt = ClampY(j + 1);
+
+                double center = y[idx];
+
+                double left =
+                    y[idx - (i - il)];
+
+                double right =
+                    y[idx + (ir - i)];
+
+                double down =
+                    y[idx - (j - jb) * Nx];
+
+                double up =
+                    y[idx + (jt - j) * Nx];
+
+                return
+                    (left - 2.0 * center + right) / hx2 +
+                    (down - 2.0 * center + up) / hy2;
+            }
+
+            //---------------------------------------------------------
+            // Генератор массива функций
+            //---------------------------------------------------------
+
+            Random rnd = new Random();
+
+            //---------------------------------------------
+            // Уравнения для u
+            //---------------------------------------------
+
+            for (int j = 0; j < Ny; j++)
+            {
+                for (int i = 0; i < Nx; i++)
                 {
-                    double[] array = new double[2 * n];
-                    Marshal.Copy(y, array, 0, 2 * n);
+                    int ii = i;
+                    int jj = j;
 
-                    return 1 + array[i2 * 2] * array[i2 * 2] * array[i2 * 2 + 1] -
-                    4 * array[i2 * 2] + a * (n + 1) * (n + 1) *
-                    (array[i1 * 2] - 2 * array[i2 * 2] + array[i3 * 2]);
-                };
+                    int idx = U(ii, jj);
 
-                F1System v = (double x, IntPtr y) =>
+                    //---------------------------------------------
+                    // Начальные условия
+                    //---------------------------------------------
+
+                    y[idx] =
+                        1.0 +
+                        0.01 * (rnd.NextDouble() - 0.5);
+
+                    //---------------------------------------------
+                    // Функция
+                    //---------------------------------------------
+
+                    
+
+                    system[idx] = (double t, IntPtr y) =>
+                    {
+
+                        double[] array = new double[TotalSize];
+                        Marshal.Copy(y, array, 0, TotalSize);
+
+                        int iu = U(ii, jj);
+                        int iv = V(ii, jj);
+
+                        double u = array[iu];
+                        double v = array[iv];
+
+                        double Lu = Laplace(array, iu, ii, jj);
+
+                        return
+                            Du * Lu
+                            + A
+                            - (B + 1.0) * u
+                            + u * u * v;
+                    };
+                }
+            }
+
+            //---------------------------------------------
+            // Уравнения для v
+            //---------------------------------------------
+
+            for (int j = 0; j < Ny; j++)
+            {
+                for (int i = 0; i < Nx; i++)
                 {
-                    double[] array = new double[2 * n];
-                    Marshal.Copy(y, array, 0, 2 * n);
+                    int ii = i;
+                    int jj = j;
 
-                    return 3 * array[i2 * 2] - array[i2 * 2] * array[i2 * 2] * array[i2 * 2 + 1] +
-                    a * (n + 1) * (n + 1) *
-                    (array[i1 * 2 + 1] - 2 * array[i2 * 2 + 1] + array[i3 * 2 + 1]);
-                };
+                    int idx = V(ii, jj);
 
-                system[i * 2] = u;
-                system[i * 2 + 1] = v;
+                    //---------------------------------------------
+                    // Начальные условия
+                    //---------------------------------------------
 
-                y[i * 2] = 1 + Math.Sin(2 * Math.PI * i / n);
-                y[i * 2 + 1] = 3;
+                    y[idx] =
+                        3.0 +
+                        0.01 * (rnd.NextDouble() - 0.5);
 
+                    //---------------------------------------------
+                    // Функция
+                    //---------------------------------------------
+                    
+                    system[idx] = (double t, IntPtr y) =>
+                    {
+
+                        double[] array = new double[TotalSize];
+                        Marshal.Copy(y, array, 0, TotalSize);
+
+                        int iu = U(ii, jj);
+                        int iv = V(ii, jj);
+
+                        double u = array[iu];
+                        double v = array[iv];
+
+                        double Lv = Laplace(array, iv, ii, jj);
+
+                        return
+                            Dv * Lv
+                            + B * u
+                            - u * u * v;
+                    };
+                }
             }
 
             res.status = 0;
@@ -326,15 +526,19 @@ namespace WinFormsApp
 
             return res;
 
+
+
         }
+
+
 
         public void example6(double h, Methods method)
         {
             DiffUrSolver.SystemTask systemTask = new DiffUrSolver.SystemTask();
 
-            uint n = 10;
+            uint n = 30;
 
-            BrusselatorSystem b = CreateBrusselatorSystem(((int)n), 0.02);
+            BrusselatorSystem b = CreateBrusselatorSystem(((int)n), ((int)n), 0.02);
 
 
             systemTask.y0 = b.y0;
@@ -342,7 +546,7 @@ namespace WinFormsApp
             systemTask.t0 = b.t0;
             systemTask.t1 = 10;
             systemTask.h = h;
-            systemTask.n = 2 * n;
+            systemTask.n = 2 * n * n;
             systemTask.method = method;
 
             DrawSystemPlot(systemTask);
@@ -350,33 +554,33 @@ namespace WinFormsApp
 
         public void example6(double h, Methods method, double h2, Methods method2)
         {
-            uint n = 100;
+            uint n = 30;
 
             DiffUrSolver.DiffUrSolver.SetThreadCount(4);
-            DiffUrSolver.DiffUrSolver.InitMemory(n);
+            DiffUrSolver.DiffUrSolver.InitMemory(2 * n * n);
 
             DiffUrSolver.SystemTask systemTask1 = new DiffUrSolver.SystemTask();
             DiffUrSolver.SystemTask systemTask2 = new DiffUrSolver.SystemTask();
 
             
 
-            BrusselatorSystem b = CreateBrusselatorSystem(((int)n), 0.02);
+            BrusselatorSystem b = CreateBrusselatorSystem(((int)n), ((int)n), 0.02);
 
 
             systemTask1.y0 = b.y0;
             systemTask1.f = b.f;
             systemTask1.t0 = b.t0;
-            systemTask1.t1 = 10;
+            systemTask1.t1 = 6;
             systemTask1.h = h;
-            systemTask1.n = 2 * n;
+            systemTask1.n = 2 * n * n;
             systemTask1.method = method;
 
             systemTask2.y0 = b.y0;
             systemTask2.f = b.f;
             systemTask2.t0 = b.t0;
-            systemTask2.t1 = 10;
+            systemTask2.t1 = 6;
             systemTask2.h = h2;
-            systemTask2.n = 2 * n;
+            systemTask2.n = 2 * n * n;
             systemTask2.method = method2;
 
             DrawSystemPlotTwo(systemTask1, systemTask2);
@@ -433,7 +637,15 @@ namespace WinFormsApp
             return 5 * Math.Sin(6 * x + 30)/6;
         }
 
-        
+        public static double SampleFunction6(double x, double y)
+        {
+            return -1000000 * (y - Math.Sin(x)) + Math.Cos(x);
+        }
+
+        public static double RealSampleFunction6(double x)
+        {
+            return Math.Sin(x);
+        }
 
         private const AnnotationLayer HiddenLayer = (AnnotationLayer)100;
         private const AnnotationLayer VisibleLayer = AnnotationLayer.AboveSeries;
@@ -467,8 +679,10 @@ namespace WinFormsApp
                 Color = OxyColors.Green,
             };
 
-            double[] resultX = new double[10000];
-            double[] resultY = new double[10000];
+            int Size = (int)((task.x1 - task.x0) / task.h) + 10;
+
+            double[] resultX = new double[Size];
+            double[] resultY = new double[Size];
 
             int status = DiffUrSolver.DiffUrSolver.SolveDiffUrArr(task, resultY);
 
@@ -913,7 +1127,8 @@ namespace WinFormsApp
             tabControl.Dock = DockStyle.Fill;
             this.Controls.Add(tabControl);
 
-            int size = 10000000;
+            int size = (int)Math.Round((systemTask.t1 - systemTask.t0) / systemTask.h) + 10;
+
             double[] resultX = new double[size];
             double[] resultY = new double[size * systemTask.n];
 
