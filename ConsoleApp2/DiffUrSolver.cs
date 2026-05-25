@@ -20,8 +20,8 @@ namespace DiffUrSolver
     [UnmanagedFunctionPointer(CallingConvention.Cdecl)]
     public delegate double F1(double x, double y);
 
-    [UnmanagedFunctionPointer(CallingConvention.Cdecl)]
-    public delegate double F1System(double x, IntPtr y);
+    //[UnmanagedFunctionPointer(CallingConvention.Cdecl)]
+    //public delegate double F1System(double x, IntPtr y);
 
     [UnmanagedFunctionPointer(CallingConvention.Cdecl)]
     public delegate double F(double x);
@@ -80,28 +80,46 @@ namespace DiffUrSolver
             return functionHandle.AddrOfPinnedObject();
         }
 
-        public static IntPtr F1SystemToIntPtr(F1System[] system)
+        //public static IntPtr F1SystemToIntPtr(F1System[] system)
+        //{
+        //    // Создаём массив IntPtr для хранения указателей на делегаты
+        //    IntPtr[] functionPointers = new IntPtr[system.Length];
+
+        //    // Фиксируем делегаты в памяти, чтобы GC не перемещал их
+        //    GCHandle[] handles = new GCHandle[system.Length];
+
+
+
+        //    for (int i = 0; i < system.Length; i++)
+        //    {
+        //        handles[i] = GCHandle.Alloc(system[i]);
+        //        functionPointers[i] = Marshal.GetFunctionPointerForDelegate(system[i]);
+        //    }
+
+
+        //    GCHandle functionsArrayHandle = GCHandle.Alloc(functionPointers, GCHandleType.Pinned);
+
+        //    return functionsArrayHandle.AddrOfPinnedObject();
+
+        //}
+
+        public static IntPtr StringArrayToIntPtr(string[] arr)
         {
-            // Создаём массив IntPtr для хранения указателей на делегаты
-            IntPtr[] functionPointers = new IntPtr[system.Length];
+            IntPtr[] stringPtrs = new IntPtr[arr.Length];
 
-            // Фиксируем делегаты в памяти, чтобы GC не перемещал их
-            GCHandle[] handles = new GCHandle[system.Length];
-
-
-
-            for (int i = 0; i < system.Length; i++)
+            for (int i = 0; i < arr.Length; i++)
             {
-                handles[i] = GCHandle.Alloc(system[i]);
-                functionPointers[i] = Marshal.GetFunctionPointerForDelegate(system[i]);
+                stringPtrs[i] = Marshal.StringToHGlobalAnsi(arr[i]);
             }
 
+            IntPtr arrayPtr = Marshal.AllocHGlobal(IntPtr.Size * arr.Length);
 
-            GCHandle functionsArrayHandle = GCHandle.Alloc(functionPointers, GCHandleType.Pinned);
+            Marshal.Copy(stringPtrs, 0, arrayPtr, arr.Length);
 
-            return functionsArrayHandle.AddrOfPinnedObject();
+            return arrayPtr;
 
         }
+
 
         public static IntPtr DoubleArrayToIntPtr(double[] arr)
         {
@@ -150,119 +168,119 @@ namespace DiffUrSolver
         [DllImport(dllPath, CallingConvention = CallingConvention.Cdecl)]
         public static extern int SolveDiffUrSystemArr(SystemTask task, double[] res);
     
-        public static int SolveSecondDiffUr(SecondTask task,ref double res)
-        {
-            SystemTask systemTask = new SystemTask();
+        //public static int SolveSecondDiffUr(SecondTask task,ref double res)
+        //{
+        //    SystemTask systemTask = new SystemTask();
 
-            systemTask.t0 = task.t0;
-            systemTask.t1 = task.t1;
-            systemTask.h = task.h;
-            systemTask.method = task.method;
-            systemTask.n = 2;
+        //    systemTask.t0 = task.t0;
+        //    systemTask.t1 = task.t1;
+        //    systemTask.h = task.h;
+        //    systemTask.method = task.method;
+        //    systemTask.n = 2;
 
-            double[] y0 = new double[6];
-            y0[0] = task.y_0;
-            y0[1] = task.y1_0;
+        //    double[] y0 = new double[6];
+        //    y0[0] = task.y_0;
+        //    y0[1] = task.y1_0;
 
-            IntPtr y0Ptr = DoubleArrayToIntPtr(y0);
-            systemTask.y0 = y0Ptr;
-
-
-            double[] resultY = new double[systemTask.n];
-
-            // Создаём массив IntPtr для хранения указателей на делегаты
-            IntPtr[] functionPointers = new IntPtr[systemTask.n];
-
-            // Фиксируем делегаты в памяти, чтобы GC не перемещал их
-            GCHandle[] handles = new GCHandle[systemTask.n];
-
-            F1System[] system = new F1System[systemTask.n];
-
-            system[0] = delegate(double x, IntPtr y){
-                double[] array = new double[2];
-                Marshal.Copy(y, array, 0, 2);
-                return array[1];
-            };
-            system[1] = delegate (double x, IntPtr y) {
-                double[] array = new double[2];
-                Marshal.Copy(y, array, 0, 2);
-                return (task.D - task.B * array[1] - task.C * array[0]) / task.A;
-            };
-
-            for (int i = 0; i < system.Length; i++)
-            {
-                handles[i] = GCHandle.Alloc(system[i]);
-                functionPointers[i] = Marshal.GetFunctionPointerForDelegate(system[i]);
-            }
+        //    IntPtr y0Ptr = DoubleArrayToIntPtr(y0);
+        //    systemTask.y0 = y0Ptr;
 
 
-            GCHandle functionsArrayHandle = GCHandle.Alloc(functionPointers, GCHandleType.Pinned);
+        //    double[] resultY = new double[systemTask.n];
 
-            systemTask.f = functionsArrayHandle.AddrOfPinnedObject();
+        //    // Создаём массив IntPtr для хранения указателей на делегаты
+        //    IntPtr[] functionPointers = new IntPtr[systemTask.n];
+
+        //    // Фиксируем делегаты в памяти, чтобы GC не перемещал их
+        //    GCHandle[] handles = new GCHandle[systemTask.n];
+
+        //    F1System[] system = new F1System[systemTask.n];
+
+        //    system[0] = delegate(double x, IntPtr y){
+        //        double[] array = new double[2];
+        //        Marshal.Copy(y, array, 0, 2);
+        //        return array[1];
+        //    };
+        //    system[1] = delegate (double x, IntPtr y) {
+        //        double[] array = new double[2];
+        //        Marshal.Copy(y, array, 0, 2);
+        //        return (task.D - task.B * array[1] - task.C * array[0]) / task.A;
+        //    };
+
+        //    for (int i = 0; i < system.Length; i++)
+        //    {
+        //        handles[i] = GCHandle.Alloc(system[i]);
+        //        functionPointers[i] = Marshal.GetFunctionPointerForDelegate(system[i]);
+        //    }
 
 
-            SolveDiffUrSystem(systemTask, resultY);
-            res = resultY[0];
-            return 0;
-        }
+        //    GCHandle functionsArrayHandle = GCHandle.Alloc(functionPointers, GCHandleType.Pinned);
 
-        public static int SolveSecondDiffUrArr(SecondTask task, ref double[] res)
-        {
-            SystemTask systemTask = new SystemTask();
+        //    systemTask.f = functionsArrayHandle.AddrOfPinnedObject();
 
-            systemTask.t0 = task.t0;
-            systemTask.t1 = task.t1;
-            systemTask.h = task.h;
-            systemTask.method = task.method;
-            systemTask.n = 2;
 
-            double[] y0 = new double[6];
-            y0[0] = task.y_0;
-            y0[1] = task.y1_0;
+        //    SolveDiffUrSystem(systemTask, resultY);
+        //    res = resultY[0];
+        //    return 0;
+        //}
 
-            IntPtr y0Ptr = DoubleArrayToIntPtr(y0);
-            systemTask.y0 = y0Ptr;
+        //public static int SolveSecondDiffUrArr(SecondTask task, ref double[] res)
+        //{
+        //    SystemTask systemTask = new SystemTask();
 
-            F1System[] system = new F1System[systemTask.n];
+        //    systemTask.t0 = task.t0;
+        //    systemTask.t1 = task.t1;
+        //    systemTask.h = task.h;
+        //    systemTask.method = task.method;
+        //    systemTask.n = 2;
 
-            system[0] = delegate (double x, IntPtr y) {
-                double[] array = new double[2];
-                Marshal.Copy(y, array, 0, 2);
-                return array[1];
-            };
+        //    double[] y0 = new double[6];
+        //    y0[0] = task.y_0;
+        //    y0[1] = task.y1_0;
 
-            system[1] = delegate (double x, IntPtr y) {
-                double[] array = new double[2];
-                Marshal.Copy(y, array, 0, 2);
-                return (task.D - task.B * array[1] - task.C * array[0]) / task.A;
-            };
+        //    IntPtr y0Ptr = DoubleArrayToIntPtr(y0);
+        //    systemTask.y0 = y0Ptr;
 
-            systemTask.f = F1SystemToIntPtr(system);
+        //    F1System[] system = new F1System[systemTask.n];
 
-            double[] resultY = new double[10000];
+        //    system[0] = delegate (double x, IntPtr y) {
+        //        double[] array = new double[2];
+        //        Marshal.Copy(y, array, 0, 2);
+        //        return array[1];
+        //    };
 
-            SolveDiffUrSystemArr(systemTask, resultY);
+        //    system[1] = delegate (double x, IntPtr y) {
+        //        double[] array = new double[2];
+        //        Marshal.Copy(y, array, 0, 2);
+        //        return (task.D - task.B * array[1] - task.C * array[0]) / task.A;
+        //    };
 
-            double start = task.t0;
-            int j = 0;
+        //    systemTask.f = F1SystemToIntPtr(system);
 
-            res[0] = resultY[0];
-            res[1] = resultY[1];
+        //    double[] resultY = new double[10000];
 
-            while (task.t0 + j * task.h < task.t1)
-            {
-                j++;
-                res[j * systemTask.n] =resultY[j*systemTask.n];
-                res[j * systemTask.n + 1] = resultY[j * systemTask.n + 1];
+        //    SolveDiffUrSystemArr(systemTask, resultY);
 
-                start = task.t0 + j* task.h;
-            }
+        //    double start = task.t0;
+        //    int j = 0;
 
-            j++;
-            res[j * systemTask.n] = resultY[j * systemTask.n];
-            res[j * systemTask.n + 1] = resultY[j * systemTask.n + 1];
+        //    res[0] = resultY[0];
+        //    res[1] = resultY[1];
 
-            return 0;
-        }
+        //    while (task.t0 + j * task.h < task.t1)
+        //    {
+        //        j++;
+        //        res[j * systemTask.n] =resultY[j*systemTask.n];
+        //        res[j * systemTask.n + 1] = resultY[j * systemTask.n + 1];
+
+        //        start = task.t0 + j* task.h;
+        //    }
+
+        //    j++;
+        //    res[j * systemTask.n] = resultY[j * systemTask.n];
+        //    res[j * systemTask.n + 1] = resultY[j * systemTask.n + 1];
+
+        //    return 0;
+        //}
     }
 }

@@ -2,578 +2,962 @@
 #include <vector>
 #include <iomanip>
 #include <float.h>
+#include <string>
 #include "../DiffUrSolverDll2/DiffUrSolverDLL2.h"
 #include "omp.h"
 #include <cmath>
 
-double func(double x, double y) {
-    return cos(x);
-}
-
-double realFunc(double x) {
-    return sin(x);
-}
-
-double func2(double x, double y) {
-    return (2 * x * cos(x) - sin(x))/ (2 * x * sqrt(x));
-}
-
-double realFunc2(double x) {
-    return sin(x) / sqrt(x);
-}
-
-double f1(double x, double* y) {
-    return y[0] - y[1];
-}
-
-double f2(double x, double* y) {
-    return -4 * y[0] + y[1];
-}
-
-double f1Real(double x) {
-    return (-exp(3 * x) + exp(-x)) / 4;
-}
-
-double f2Real(double x) {
-    return (exp(3 * x) + exp(-x)) / 2;
-}
-
-void getArrFromF(double x0, double x1, double h, double* resx, double* resy, double (*f)(double x)) {
-    int i = 0;
-    while (x0 + h + 0.0000001 < x1) {
-        resy[i] = f(x0);
-        resx[i] = x0;
-        i++;
-        x0 = i * h;
-    }
-    resy[i] = f(x0);
-    resx[i] = x0;
-
-    resy[i + 1] = f(x1);
-    resx[i + 1] = x1;
-}
-
-void getArrFromF(double x0, double x1, double h, double* resx, double* resy, double (*xf)(double x), double (*yf)(double x, double y)) {
-    int i = 0;
-    while (x0 + h + 0.0000001 < x1) {
-        resy[i] = yf(x0, 0);
-        resx[i] = xf(x0);
-        i++;
-        x0 = i * h;
-    }
-    resy[i] = yf(x0, 0);
-    resx[i] = xf(x0);
-
-    resy[i + 1] = yf(x1, 0);
-    resx[i + 1] = xf(x0);
-}
-
-void getMaxMin(double* arr, ui n, double& max, double& min) {
-    max = DBL_MIN;
-    min = DBL_MAX;
-    for (ui i = 0; i < n; i++) {
-        if (arr[i] > max) {
-            max = arr[i];
-        }
-        if (arr[i] < min) {
-            min = arr[i];
-        }
-    }
-}
-
-void ex1(Methods m) {
-
-    Task task;
-
-    task.x0 = 0;
-    task.x1 = 7;
-    task.h = 0.01;
-    task.y0 = realFunc(task.x0);
-    task.method = m;
-    F1 fun = F1(func);
-    task.f = &fun;
-
-    ui size = ui(ceil((task.x1 - task.x0) / task.h) + 1);
-
-    double* res = new double[size];
-
-    SolveDiffUrArr(task, res);
-    for (int i = 0; i < size; i++) {
-        std::cout <<task.x0+ task.h*i <<"  " << res[i] << "  " << realFunc(task.x0 + task.h*i) << std::endl;
-    }
-
-    /*double* resx = new double[size * 3 - 1];
-    double* resy = new double[size * 3 - 1];
-
-    int sum = 0;
-
-    for (ui i = 0; i < size; i++) {
-        resx[i] = i * h;
-        resy[i] = res[i];
-    }
-    sum += size;
-
-    getArrFromF(x0, x1, h / 2, resx + sum, resy + sum, realFunc);
-
-    double xmin = DBL_MAX;
-    double xmax = DBL_MIN;
-    double ymin = DBL_MAX;
-    double ymax = DBL_MIN;
-
-    getMaxMin(resx, size * 3 - 2, xmax, xmin);
-    getMaxMin(resy, size * 3 - 2, ymax, ymin);
-
-
-    ui ns[2] = { size,size * 2 - 2 };
-
-    std::string colors[2] = { "red","green" };
-    std::string legend[2] = { "red","green" };
-
-    drawer->DrawGraph(resx, resy, ns, 2, xmin, xmax, 1, ymin, ymax, 1, colors, legend);*/
-}
-
-//void ex1_5(Methods m) {
-//    DifUrSolver* difSolv = new DifUrSolver();
-//    GraphDrawer* drawer = new GraphDrawer();
-//
-//    double x0 = 0;
-//    double x1 = 7;
-//    double h = 0.1;
-//
-//    ui size = ui(ceil((x1 - x0) / h) + 1);
-//
-//    std::vector<double> res = std::vector<double>();
-//
-//    SolveDiffUrArr(x0, 0, x1, h, func, res, m);
-//    for (int i = 0; i <= double(1 - 0) / 0.05; i++) {
-//        std::cout <<0+ 0.05*i <<"  " << res[i] << "  " << sin(0 + 0.05 * i) << std::endl;
-//    }
-//
-//    double* resx = new double[size * 3 - 1];
-//    double* resy = new double[size * 3 - 1];
-//
-//    int sum = 0;
-//
-//    for (ui i = 0; i < size; i++) {
-//        resx[i] = res[i];
-//        resy[i] = func(i * h, 0);
-//    }
-//    sum += size;
-//
-//    getArrFromF(x0, x1, h / 2, resx + sum, resy + sum, realFunc, func);
-//
-//
-//
-//    double xmin = DBL_MAX;
-//    double xmax = DBL_MIN;
-//    double ymin = DBL_MAX;
-//    double ymax = DBL_MIN;
-//
-//    getMaxMin(resx, size * 3 - 2, xmax, xmin);
-//    getMaxMin(resy, size * 3 - 2, ymax, ymin);
-//
-//
-//    ui ns[2] = { size,size * 2 - 2 };
-//
-//    std::string colors[2] = { "red","green" };
-//    std::string legend[2] = { "red","green" };
-//
-//    drawer->DrawGraph(resx, resy, ns, 2, xmin, xmax, 1, ymin, ymax, 1, colors, legend);
+//double func(double x, double y) {
+//    return cos(x);
 //}
 //
-//void ex2() {
-//    DifUrSolver* difSolv = new DifUrSolver();
-//
-//    difSolv->Test(0, 0, 6, 0.1, func, realFunc, Euler, "Euler");
-//    difSolv->Test(0, 0, 6, 0.1, func, realFunc, RK2, "RK2");
-//    difSolv->Test(0, 0, 6, 0.1, func, realFunc, RK4, "RK4");
+//double realFunc(double x) {
+//    return sin(x);
 //}
 //
-//void ex3(Methods m) {
-//    /*
-//            x' = x - y
-//            y' = y - 4x
+//double func2(double x, double y) {
+//    return (2 * x * cos(x) - sin(x))/ (2 * x * sqrt(x));
+//}
 //
-//            x(0) = 0
-//            y(0) = 1
+//double realFunc2(double x) {
+//    return sin(x) / sqrt(x);
+//}
 //
-//            ans:
+//double f1(double x, double* y) {
+//    return y[0] - y[1];
+//}
 //
-//            x = 1/4 (-e^(3t) + e^(-t))
-//            y = 1/2 (e^(3t) + e^(-t))
+//double f2(double x, double* y) {
+//    return -4 * y[0] + y[1];
+//}
 //
-//            x(1) ~ -4.92941
-//            y(0) ~ 10.2267
-//    */
+//double f1Real(double x) {
+//    return (-exp(3 * x) + exp(-x)) / 4;
+//}
 //
-//    DifUrSolver* difSolv = new DifUrSolver();
-//    GraphDrawer* drawer = new GraphDrawer();
+//double f2Real(double x) {
+//    return (exp(3 * x) + exp(-x)) / 2;
+//}
 //
-//
-//    double x0 = 0;
-//    double x1 = 1;
-//    double h = 0.1;
-//    ui size = ui(ceil((x1 - x0) / h) + 1);
-//
-//    double** res = new double* [size];
-//    for (ui i = 0; i < size; i++) {
-//        res[i] = new double[2];
+//void getArrFromF(double x0, double x1, double h, double* resx, double* resy, double (*f)(double x)) {
+//    int i = 0;
+//    while (x0 + h + 0.0000001 < x1) {
+//        resy[i] = f(x0);
+//        resx[i] = x0;
+//        i++;
+//        x0 = i * h;
 //    }
+//    resy[i] = f(x0);
+//    resx[i] = x0;
 //
-//    std::vector<double (*)(double x, double* y)> f;
-//    f.push_back(f1);
-//    f.push_back(f2);
+//    resy[i + 1] = f(x1);
+//    resx[i + 1] = x1;
+//}
 //
-//    std::vector<double (*)(double x)> realF;
-//    realF.push_back(f1Real);
-//    realF.push_back(f2Real);
-//
-//    double* y = new double[2];
-//    y[0] = 0;
-//    y[1] = 1;
-//
-//    difSolv->SolveDiffUrSystemArr(x0, y, x1, 2, h, f, res, m);
-//
-//    double* resx = new double[size * 3 - 1];
-//    double* resy = new double[size * 3 - 1];
-//
-//    int sum = 0;
-//
-//    for (ui i = 0; i < size; i++) {
-//        resx[i] = res[i][0];
-//        resy[i] = res[i][1];
+//void getArrFromF(double x0, double x1, double h, double* resx, double* resy, double (*xf)(double x), double (*yf)(double x, double y)) {
+//    int i = 0;
+//    while (x0 + h + 0.0000001 < x1) {
+//        resy[i] = yf(x0, 0);
+//        resx[i] = xf(x0);
+//        i++;
+//        x0 = i * h;
 //    }
-//    sum += size;
+//    resy[i] = yf(x0, 0);
+//    resx[i] = xf(x0);
 //
-//    for (ui i = 0; i < size * 2 - 2; i++) {
-//        resx[i + sum] = realF[0](i * 0.05);
-//        resy[i + sum] = realF[1](i * 0.05);
-//    }
+//    resy[i + 1] = yf(x1, 0);
+//    resx[i + 1] = xf(x0);
+//}
 //
-//    double xmin = DBL_MAX;
-//    double xmax = DBL_MIN;
-//    double ymin = DBL_MAX;
-//    double ymax = DBL_MIN;
-//
-//    getMaxMin(resx, size * 3 - 2, xmax, xmin);
-//    getMaxMin(resy, size * 3 - 2, ymax, ymin);
-//
-//
-//    ui ns[2] = { size,size * 2 - 2 };
-//
-//    std::string colors[2] = { "red","green" };
-//    std::string legend[2] = { "red","green" };
-//
-//    drawer->DrawGraph(resx, resy, ns, 2, xmin, xmax, 1, ymin, ymax, 1, colors, legend);
-//
-//    /*std::cout << "t          x      realx     y     realy" << std::endl;
-//    for (int i = 0; i <= double(1 - 0) / 0.05; i++) {
-//        std::cout << std::fixed << std::setprecision(4) << 0 + 0.05 * i << "  ";
-//        for (int k = 0; k < 2; k++) {
-//            std::cout << std::fixed << std::setprecision(4) << res[i][k] << "  ";
-//            std::cout << std::fixed << std::setprecision(4) << realF[k](0 + 0.05*i) << "  ";
+//void getMaxMin(double* arr, ui n, double& max, double& min) {
+//    max = DBL_MIN;
+//    min = DBL_MAX;
+//    for (ui i = 0; i < n; i++) {
+//        if (arr[i] > max) {
+//            max = arr[i];
 //        }
+//        if (arr[i] < min) {
+//            min = arr[i];
+//        }
+//    }
+//}
 //
-//        std::cout<< std::endl;
+//void ex1(Methods m) {
+//
+//    Task task;
+//
+//    task.x0 = 0;
+//    task.x1 = 7;
+//    task.h = 0.01;
+//    task.y0 = realFunc(task.x0);
+//    task.method = m;
+//    F1 fun = F1(func);
+//    task.f = &fun;
+//
+//    ui size = ui(ceil((task.x1 - task.x0) / task.h) + 1);
+//
+//    double* res = new double[size];
+//
+//    SolveDiffUrArr(task, res);
+//    for (int i = 0; i < size; i++) {
+//        std::cout <<task.x0+ task.h*i <<"  " << res[i] << "  " << realFunc(task.x0 + task.h*i) << std::endl;
+//    }
+//
+//    /*double* resx = new double[size * 3 - 1];
+//    double* resy = new double[size * 3 - 1];
+//
+//    int sum = 0;
+//
+//    for (ui i = 0; i < size; i++) {
+//        resx[i] = i * h;
+//        resy[i] = res[i];
+//    }
+//    sum += size;
+//
+//    getArrFromF(x0, x1, h / 2, resx + sum, resy + sum, realFunc);
+//
+//    double xmin = DBL_MAX;
+//    double xmax = DBL_MIN;
+//    double ymin = DBL_MAX;
+//    double ymax = DBL_MIN;
+//
+//    getMaxMin(resx, size * 3 - 2, xmax, xmin);
+//    getMaxMin(resy, size * 3 - 2, ymax, ymin);
+//
+//
+//    ui ns[2] = { size,size * 2 - 2 };
+//
+//    std::string colors[2] = { "red","green" };
+//    std::string legend[2] = { "red","green" };
+//
+//    drawer->DrawGraph(resx, resy, ns, 2, xmin, xmax, 1, ymin, ymax, 1, colors, legend);*/
+//}
+//
+////void ex1_5(Methods m) {
+////    DifUrSolver* difSolv = new DifUrSolver();
+////    GraphDrawer* drawer = new GraphDrawer();
+////
+////    double x0 = 0;
+////    double x1 = 7;
+////    double h = 0.1;
+////
+////    ui size = ui(ceil((x1 - x0) / h) + 1);
+////
+////    std::vector<double> res = std::vector<double>();
+////
+////    SolveDiffUrArr(x0, 0, x1, h, func, res, m);
+////    for (int i = 0; i <= double(1 - 0) / 0.05; i++) {
+////        std::cout <<0+ 0.05*i <<"  " << res[i] << "  " << sin(0 + 0.05 * i) << std::endl;
+////    }
+////
+////    double* resx = new double[size * 3 - 1];
+////    double* resy = new double[size * 3 - 1];
+////
+////    int sum = 0;
+////
+////    for (ui i = 0; i < size; i++) {
+////        resx[i] = res[i];
+////        resy[i] = func(i * h, 0);
+////    }
+////    sum += size;
+////
+////    getArrFromF(x0, x1, h / 2, resx + sum, resy + sum, realFunc, func);
+////
+////
+////
+////    double xmin = DBL_MAX;
+////    double xmax = DBL_MIN;
+////    double ymin = DBL_MAX;
+////    double ymax = DBL_MIN;
+////
+////    getMaxMin(resx, size * 3 - 2, xmax, xmin);
+////    getMaxMin(resy, size * 3 - 2, ymax, ymin);
+////
+////
+////    ui ns[2] = { size,size * 2 - 2 };
+////
+////    std::string colors[2] = { "red","green" };
+////    std::string legend[2] = { "red","green" };
+////
+////    drawer->DrawGraph(resx, resy, ns, 2, xmin, xmax, 1, ymin, ymax, 1, colors, legend);
+////}
+////
+////void ex2() {
+////    DifUrSolver* difSolv = new DifUrSolver();
+////
+////    difSolv->Test(0, 0, 6, 0.1, func, realFunc, Euler, "Euler");
+////    difSolv->Test(0, 0, 6, 0.1, func, realFunc, RK2, "RK2");
+////    difSolv->Test(0, 0, 6, 0.1, func, realFunc, RK4, "RK4");
+////}
+////
+////void ex3(Methods m) {
+////    /*
+////            x' = x - y
+////            y' = y - 4x
+////
+////            x(0) = 0
+////            y(0) = 1
+////
+////            ans:
+////
+////            x = 1/4 (-e^(3t) + e^(-t))
+////            y = 1/2 (e^(3t) + e^(-t))
+////
+////            x(1) ~ -4.92941
+////            y(0) ~ 10.2267
+////    */
+////
+////    DifUrSolver* difSolv = new DifUrSolver();
+////    GraphDrawer* drawer = new GraphDrawer();
+////
+////
+////    double x0 = 0;
+////    double x1 = 1;
+////    double h = 0.1;
+////    ui size = ui(ceil((x1 - x0) / h) + 1);
+////
+////    double** res = new double* [size];
+////    for (ui i = 0; i < size; i++) {
+////        res[i] = new double[2];
+////    }
+////
+////    std::vector<double (*)(double x, double* y)> f;
+////    f.push_back(f1);
+////    f.push_back(f2);
+////
+////    std::vector<double (*)(double x)> realF;
+////    realF.push_back(f1Real);
+////    realF.push_back(f2Real);
+////
+////    double* y = new double[2];
+////    y[0] = 0;
+////    y[1] = 1;
+////
+////    difSolv->SolveDiffUrSystemArr(x0, y, x1, 2, h, f, res, m);
+////
+////    double* resx = new double[size * 3 - 1];
+////    double* resy = new double[size * 3 - 1];
+////
+////    int sum = 0;
+////
+////    for (ui i = 0; i < size; i++) {
+////        resx[i] = res[i][0];
+////        resy[i] = res[i][1];
+////    }
+////    sum += size;
+////
+////    for (ui i = 0; i < size * 2 - 2; i++) {
+////        resx[i + sum] = realF[0](i * 0.05);
+////        resy[i + sum] = realF[1](i * 0.05);
+////    }
+////
+////    double xmin = DBL_MAX;
+////    double xmax = DBL_MIN;
+////    double ymin = DBL_MAX;
+////    double ymax = DBL_MIN;
+////
+////    getMaxMin(resx, size * 3 - 2, xmax, xmin);
+////    getMaxMin(resy, size * 3 - 2, ymax, ymin);
+////
+////
+////    ui ns[2] = { size,size * 2 - 2 };
+////
+////    std::string colors[2] = { "red","green" };
+////    std::string legend[2] = { "red","green" };
+////
+////    drawer->DrawGraph(resx, resy, ns, 2, xmin, xmax, 1, ymin, ymax, 1, colors, legend);
+////
+////    /*std::cout << "t          x      realx     y     realy" << std::endl;
+////    for (int i = 0; i <= double(1 - 0) / 0.05; i++) {
+////        std::cout << std::fixed << std::setprecision(4) << 0 + 0.05 * i << "  ";
+////        for (int k = 0; k < 2; k++) {
+////            std::cout << std::fixed << std::setprecision(4) << res[i][k] << "  ";
+////            std::cout << std::fixed << std::setprecision(4) << realF[k](0 + 0.05*i) << "  ";
+////        }
+////
+////        std::cout<< std::endl;
+////    }*/
+////
+////}
+////
+////void ex4() {
+////    DifUrSolver* difSolv = new DifUrSolver();
+////
+////    std::vector<double (*)(double x, double* y)> f;
+////    f.push_back(f1);
+////    f.push_back(f2);
+////
+////    std::vector<double (*)(double x)> realF;
+////    realF.push_back(f1Real);
+////    realF.push_back(f2Real);
+////
+////    double* y = new double[2];
+////    y[0] = 0;
+////    y[1] = 1;
+////
+////    difSolv->TestSystem(0, y, 1, 2, 0.001, f, realF, Euler, "Euler");
+////    difSolv->TestSystem(0, y, 1, 2, 0.001, f, realF, RK2, "RK2");
+////    difSolv->TestSystem(0, y, 1, 2, 0.001, f, realF, RK4, "RK4");
+////}
+////
+////void ex5(Methods m) {
+////    DifUrSolver* difSolv = new DifUrSolver();
+////    double res = -50;
+////    double t0 = 0, t1 = 0;
+////    double x0 = 0, x1 = 6, y0 = 0;
+////
+////    t0 = omp_get_wtime();
+////    difSolv->SolveDiffUrAutoH(x0, y0, x1, 0.3, 0.0001, func, res, m);
+////    t1 = omp_get_wtime();
+////    std::cout << "time : " << t1 - t0 << " sec" << std::endl;
+////    std::cout << "result: " << res << " real result " << realFunc(x1) << std::endl;
+////}
+////
+////void ex5full() {
+////    std::cout << "Euler: " << std::endl;
+////    ex5(Euler);
+////    std::cout << "RK2: " << std::endl;
+////    ex5(RK2);
+////    std::cout << "RK4: " << std::endl;
+////    ex5(RK4);
+////}
+////
+//void ex6(Methods m) {
+//    /*std::vector<double> resX;
+//    std::vector<double> resY;
+//    double t0 = 0, t1 = 0;
+//    double x0 = 0, x1 = 6, y0 = realFunc(x0);
+//
+//    t0 = omp_get_wtime();
+//    SolveDiffUrAutoHArr(x0, y0, x1, 0.3, 0.000001, func, resX, resY, m);
+//    t1 = omp_get_wtime();
+//    std::cout << "time : " << t1 - t0 << " sec" << std::endl;
+//    for (int i = 0; i < resX.size(); i++) {
+//        std::cout << "X: " << std::fixed << std::setprecision(6) << resX[i] << " result: " << std::fixed << std::setprecision(6) <<
+//            resY[i] << " real result " << std::fixed << std::setprecision(6) << realFunc(resX[i]) << std::endl;
 //    }*/
 //
 //}
 //
-//void ex4() {
-//    DifUrSolver* difSolv = new DifUrSolver();
-//
-//    std::vector<double (*)(double x, double* y)> f;
-//    f.push_back(f1);
-//    f.push_back(f2);
-//
-//    std::vector<double (*)(double x)> realF;
-//    realF.push_back(f1Real);
-//    realF.push_back(f2Real);
-//
-//    double* y = new double[2];
-//    y[0] = 0;
-//    y[1] = 1;
-//
-//    difSolv->TestSystem(0, y, 1, 2, 0.001, f, realF, Euler, "Euler");
-//    difSolv->TestSystem(0, y, 1, 2, 0.001, f, realF, RK2, "RK2");
-//    difSolv->TestSystem(0, y, 1, 2, 0.001, f, realF, RK4, "RK4");
+//void ex6full() {
+//    std::cout << "Euler: " << std::endl;
+//    ex6(Euler);
+//    std::cout << "RK2: " << std::endl;
+//    ex6(RK2);
+//    std::cout << "RK4: " << std::endl;
+//    ex6(RK4);
 //}
 //
-//void ex5(Methods m) {
-//    DifUrSolver* difSolv = new DifUrSolver();
-//    double res = -50;
+//void ex7() {
+//   /* std::vector<double> res;
 //    double t0 = 0, t1 = 0;
-//    double x0 = 0, x1 = 6, y0 = 0;
+//    double x0 = 1, x1 = 20, y0 = realFunc(x0), h = 0.01;
 //
 //    t0 = omp_get_wtime();
-//    difSolv->SolveDiffUrAutoH(x0, y0, x1, 0.3, 0.0001, func, res, m);
+//    SolveDiffUrAutoMethodArr(x0, y0, x1, h, 0.0001, func, res, Euler);
 //    t1 = omp_get_wtime();
 //    std::cout << "time : " << t1 - t0 << " sec" << std::endl;
-//    std::cout << "result: " << res << " real result " << realFunc(x1) << std::endl;
+//    for (int i = 0; i < res.size(); i++) {
+//        std::cout << "X: " << std::fixed << std::setprecision(6) << x0 + i*h << " result: " << std::fixed << std::setprecision(6) <<
+//            res[i] << " real result " << std::fixed << std::setprecision(6) << realFunc(x0 + i * h) << std::endl;
+//    }*/
+//
 //}
 //
-//void ex5full() {
-//    std::cout << "Euler: " << std::endl;
-//    ex5(Euler);
-//    std::cout << "RK2: " << std::endl;
-//    ex5(RK2);
-//    std::cout << "RK4: " << std::endl;
-//    ex5(RK4);
+//void ex8() {
+//    /*std::vector<double> res;
+//    std::vector<Methods> m;
+//    double t0 = 0, t1 = 0;
+//    double x0 = 1, x1 = 2, y0 = realFunc2(x0), h = 0.1;
+//
+//    t0 = omp_get_wtime();
+//    SolveDiffUrAutoMethodArr2(x0, y0, x1, h, 0.00001, func2, res,m, Euler);
+//    t1 = omp_get_wtime();
+//    std::cout << "time : " << t1 - t0 << " sec" << std::endl;
+//    for (int i = 0; i < res.size(); i++) {
+//        std::cout << "X: " << std::fixed << std::setprecision(6) << x0 + i * h << " result: " << std::fixed << std::setprecision(6) <<
+//            res[i] << " real result " << std::fixed << std::setprecision(6) << realFunc2(x0 + i * h) <<" Method: " << m[i] << std::endl;
+//    }*/
+//
 //}
 //
-void ex6(Methods m) {
-    /*std::vector<double> resX;
-    std::vector<double> resY;
-    double t0 = 0, t1 = 0;
-    double x0 = 0, x1 = 6, y0 = realFunc(x0);
+//double systemf1(double x,const double*y) {
+//    return  y[0] - 5 * y[1];
+//}
+//double systemf2(double x,const double* y) {
+//    return 5 * y[0] + y[1];
+//}
+//
+//void ex9(double h, Methods method) {
+//
+//    SetThreadCount(4);
+//    
+//    SystemTask systemTask;
+//
+//    systemTask.t0 = 0.0;
+//    systemTask.t1 = 4.0;
+//    systemTask.h = h;
+//    systemTask.n = 2;
+//    systemTask.method = method;
+//    
+//    double* y0 = new double[3];
+//    y0[0] = 1;
+//    y0[1] = 1;
+//
+//    systemTask.y0 = y0;
+//
+//    systemTask.f = new F1System[3]{ systemf1, systemf2 };
+//
+//    int size = 1000000;
+//    double* resultX = new double[size];
+//    double* resultY = new double[size * systemTask.n];
+//
+//    double time0 = omp_get_wtime();
+//    int status = SolveDiffUrSystemArr(systemTask, resultY);
+//    double time1 = omp_get_wtime();
+//
+//    int count = 0;
+//
+//    while (systemTask.t0 + systemTask.h * count < systemTask.t1) {
+//        count++;
+//    }
+//
+//    std::cout << "res in t = " << systemTask.t1 << ": " << std::endl;
+//
+//    for (int i = 0; i < systemTask.n; i++) {
+//
+//        std::cout << "y" << i << " = " << resultY[systemTask.n * count + i] << std::endl;
+//    }
+//
+//    std::cout << "step count: " << count << std::endl;
+//
+//    std::cout << "time : " << time1 - time0 << " sec" << std::endl;
+//
+//    /*std::cout << "full res: " << std::endl;
+//    for (int i = 0; i < count * systemTask.n; i++) {
+//        std::cout << resultY[i] << std::endl;
+//    }*/
+//}
+//
+//double systemf3(double x,const double* y) {
+//    return  y[1];
+//}
+//double systemf4(double x,const double* y) {
+//    return - 0.447 * y[1] - 5.0 * y[0];
+//}
+//
+//void testSystem(Methods m) {
+//	SystemTask task;
+//    
+//    task.t0 = 0;
+//    task.t1 = 10;
+//
+//	task.y0 = new double[2] {0.01, 0};
+//    task.h = 0.1;
+//    task.n = 2;
+//
+//    F1System* system = new F1System[task.n];
+//
+//	system[0] = systemf3;
+//	system[1] = systemf4;
+//
+//	task.f = system;
+//
+//    task.method = m;
+//
+//	double* res = new double[20000000];
+//
+//	SolveDiffUrSystemArr(task,res);
+//
+//	double tNow = task.t0;
+//    int i = 1;
+//
+//	while (tNow + task.h < task.t1) {
+//		std::cout << tNow << " " << res[(i-1)*task.n] << std::endl;
+//		tNow = task.t0 + i * task.h ;
+//		i++;
+//	}
+//
+//    std::cout << tNow << " " << res[(i-1) * task.n] << std::endl;
+//    std::cout << task.t1 << " " << res[i * task.n] << std::endl;
+//
+//}
+//
+//double SystemFunction1(double x, const double* y) {
+//    return -0.04 * y[0] + 10000 * y[1] * y[2];
+//}
+//
+//double SystemFunction2(double x, const double* y)
+//{
+//
+//    return 0.04 * y[0] - 10000 * y[1] * y[2] - 30000000 * y[1] * y[1];
+//}
+//
+//double SystemFunction3(double x, const double* y)
+//{
+//
+//    return 30000000 * y[1] * y[1];
+//}
+//
+//void ex10(double h, Methods method) {
+//    SystemTask systemTask;
+//
+//    systemTask.t0 = 0.0;
+//    systemTask.t1 = 0.3;
+//    systemTask.h = h;
+//    systemTask.n = 3;
+//    systemTask.method = method;
+//
+//    double* y0 = new double[3];
+//    y0[0] = 1;
+//    y0[1] = 0;
+//    y0[2] = 0;
+//
+//    systemTask.y0 = y0;
+//
+//    systemTask.f = new F1System[3]{ SystemFunction1, SystemFunction2, SystemFunction3 };
+//
+//    int size = 10000000;
+//    double* resultX = new double[size];
+//    double* resultY = new double[size * systemTask.n];
+//
+//    double time0 = omp_get_wtime();
+//    int status = SolveDiffUrSystemArr(systemTask, resultY);
+//    double time1 = omp_get_wtime();
+//
+//    int count = 0;
+//
+//    while (systemTask.t0 + systemTask.h * count < systemTask.t1) {
+//        count++;
+//    }
+//    
+//    std::cout << "res in t = " << systemTask.t1 << ": " << std::endl;
+//
+//    for (int i = 0; i < systemTask.n; i++) {
+//
+//        std::cout << "y" << i << " = " << resultY[systemTask.n * count + i] << std::endl;
+//    }
+//
+//    std::cout << "step count: " << count << std::endl;
+//
+//    std::cout << "time : " << time1 - time0 << " sec" << std::endl;
+//
+//    /*std::cout << "full res: " << std::endl;
+//    for (int i = 0; i < count * systemTask.n; i++) {
+//        std::cout << resultY[i] << std::endl;
+//    }*/
+//}
+//
+//
+//double func3(double x, double y) {
+//    return -1000000 * (y - sin(x)) + cos(x);
+//}
+//
+//double realFunc3(double x) {
+//    return sin(x);
+//}
+//
 
-    t0 = omp_get_wtime();
-    SolveDiffUrAutoHArr(x0, y0, x1, 0.3, 0.000001, func, resX, resY, m);
-    t1 = omp_get_wtime();
-    std::cout << "time : " << t1 - t0 << " sec" << std::endl;
-    for (int i = 0; i < resX.size(); i++) {
-        std::cout << "X: " << std::fixed << std::setprecision(6) << resX[i] << " result: " << std::fixed << std::setprecision(6) <<
-            resY[i] << " real result " << std::fixed << std::setprecision(6) << realFunc(resX[i]) << std::endl;
-    }*/
 
-}
+//void expetiment11(double h, Methods method ) {
+//
+//    Task task = Task{};
+//
+//    task.h = h;
+//    task.method = method;
+//    task.x0 = 0;
+//    task.y0 = realFunc3(task.x0);
+//    task.x1 = 10;
+//
+//    task.f = new F1(func3);
+//
+//    int size = (int)((task.x1 - task.x0) / h) + 10;
+//
+//    double* res = new double[size];
+//
+//
+//    int status = SolveDiffUrArr(task, res);
+//
+//}
 
-void ex6full() {
-    std::cout << "Euler: " << std::endl;
-    ex6(Euler);
-    std::cout << "RK2: " << std::endl;
-    ex6(RK2);
-    std::cout << "RK4: " << std::endl;
-    ex6(RK4);
-}
+const char** CreateSystem(unsigned int n)
+{
+    const char** system = (const char**)malloc(n * sizeof(const char*));
 
-void ex7() {
-   /* std::vector<double> res;
-    double t0 = 0, t1 = 0;
-    double x0 = 1, x1 = 20, y0 = realFunc(x0), h = 0.01;
+    std::string* storage = new std::string[n];
 
-    t0 = omp_get_wtime();
-    SolveDiffUrAutoMethodArr(x0, y0, x1, h, 0.0001, func, res, Euler);
-    t1 = omp_get_wtime();
-    std::cout << "time : " << t1 - t0 << " sec" << std::endl;
-    for (int i = 0; i < res.size(); i++) {
-        std::cout << "X: " << std::fixed << std::setprecision(6) << x0 + i*h << " result: " << std::fixed << std::setprecision(6) <<
-            res[i] << " real result " << std::fixed << std::setprecision(6) << realFunc(x0 + i * h) << std::endl;
-    }*/
+    double kh = 100;
 
-}
+    storage[0] = " - y[0] + " + std::to_string(kh) + " * ( y[" + std::to_string(n - 1) + "] - 2 * y[0] + y[1] ) + 10";
 
-void ex8() {
-    /*std::vector<double> res;
-    std::vector<Methods> m;
-    double t0 = 0, t1 = 0;
-    double x0 = 1, x1 = 2, y0 = realFunc2(x0), h = 0.1;
+    system[0] = storage[0].c_str();
 
-    t0 = omp_get_wtime();
-    SolveDiffUrAutoMethodArr2(x0, y0, x1, h, 0.00001, func2, res,m, Euler);
-    t1 = omp_get_wtime();
-    std::cout << "time : " << t1 - t0 << " sec" << std::endl;
-    for (int i = 0; i < res.size(); i++) {
-        std::cout << "X: " << std::fixed << std::setprecision(6) << x0 + i * h << " result: " << std::fixed << std::setprecision(6) <<
-            res[i] << " real result " << std::fixed << std::setprecision(6) << realFunc2(x0 + i * h) <<" Method: " << m[i] << std::endl;
-    }*/
+    for (int i = 1; i < n - 1; i++)
+    {
 
-}
+        storage[i] = "- (1.0 / " + std::to_string(i) + " % 100) * y[ " + std::to_string(i) + " ] + "
+            + std::to_string(kh) + " * (y[" + std::to_string(i - 1) + "] - 2 * y[" + std::to_string(i) + "] + y[" + std::to_string(i + 1) + "])";
 
-double systemf1(double x,const double*y) {
-    return  y[0] - 5 * y[1];
-}
-double systemf2(double x,const double* y) {
-    return 5 * y[0] + y[1];
-}
-
-void ex9(double h, Methods method) {
-
-    SetThreadCount(4);
-    
-    SystemTask systemTask;
-
-    systemTask.t0 = 0.0;
-    systemTask.t1 = 4.0;
-    systemTask.h = h;
-    systemTask.n = 2;
-    systemTask.method = method;
-    
-    double* y0 = new double[3];
-    y0[0] = 1;
-    y0[1] = 1;
-
-    systemTask.y0 = y0;
-
-    systemTask.f = new F1System[3]{ systemf1, systemf2 };
-
-    int size = 1000000;
-    double* resultX = new double[size];
-    double* resultY = new double[size * systemTask.n];
-
-    double time0 = omp_get_wtime();
-    int status = SolveDiffUrSystemArr(systemTask, resultY);
-    double time1 = omp_get_wtime();
-
-    int count = 0;
-
-    while (systemTask.t0 + systemTask.h * count < systemTask.t1) {
-        count++;
+        system[i] = storage[i].c_str();
     }
 
-    std::cout << "res in t = " << systemTask.t1 << ": " << std::endl;
+    storage[n-1] = "-(1.0 / (" + std::to_string(n - 1) + ") % 100) * y[" + std::to_string(n - 1) + "] + " + std::to_string(kh) + " * (y[" + std::to_string(n - 2) + "] - 2 * y[" + std::to_string(n - 1) + "] + y[0])";
 
-    for (int i = 0; i < systemTask.n; i++) {
+    system[n-1] = storage[n - 1].c_str();
 
-        std::cout << "y" << i << " = " << resultY[systemTask.n * count + i] << std::endl;
+
+    return system;
+}
+
+
+const char** CreateSystem2(unsigned int n)
+{
+    const char** system = (const char**)malloc(n * sizeof(const char*));
+
+    std::string* storage = new std::string[n];
+
+    for (int i = 0; i < n; i++)
+    {
+
+        storage[i] = "- 10^(6 * " + std::to_string(i) + " / " + std::to_string(n) + ") * y[" + std::to_string(i) + "] + sin(x)";
+
+        system[i] = storage[i].c_str();
     }
 
-    std::cout << "step count: " << count << std::endl;
-
-    std::cout << "time : " << time1 - time0 << " sec" << std::endl;
-
-    /*std::cout << "full res: " << std::endl;
-    for (int i = 0; i < count * systemTask.n; i++) {
-        std::cout << resultY[i] << std::endl;
-    }*/
+    return system;
 }
 
-double systemf3(double x,const double* y) {
-    return  y[1];
+const char** CreateSystem3(unsigned int n)
+{
+    const char** system = (const char**)malloc(n * sizeof(const char*));
+
+    std::string* storage = new std::string[n];
+
+    for (int i = 0; i < n; i++)
+    {
+
+        storage[i] = "sin( y(" + std::to_string(i) + "))";
+
+        system[i] = storage[i].c_str();
+    }
+
+    return system;
 }
-double systemf4(double x,const double* y) {
-    return - 0.447 * y[1] - 5.0 * y[0];
+
+
+const char** CreateSystem4(unsigned int n)
+{
+
+	srand(43);
+
+    const char** system = (const char**)malloc(n * sizeof(const char*));
+
+    std::string* storage = new std::string[n];
+
+    double* A = new double[n * n];
+
+    for (int i = 0; i < n; i++)
+    {
+        for (int j = 0; j < n; j++) {
+            if (i != j) {
+                A[i * n + j] = double(rand()) / double(RAND_MAX);
+            }
+            else {
+                A[i * n + j] = std::pow(10, (6.0 * double(i) / double(n - 1)));
+            }
+        }
+
+
+    }
+
+    for (int i = 0; i < n; i++) {
+        storage[i] = std::to_string(A[i * n + i]) +" * y[" + std::to_string(i) + "]";
+
+        for (int j = 0; j < n; j++) {
+            if (i != j) {
+                storage[i] += " + " + std::to_string(A[i * n + j]) + " * tanh( y[" + std::to_string(j) + "])";
+            }
+        }
+
+        system[i] = storage[i].c_str();
+
+    }
+
+    return system;
 }
 
-void testSystem(Methods m) {
-	SystemTask task;
-    
-    task.t0 = 0;
-    task.t1 = 10;
+SystemTask CreateSystem4_5(unsigned int n, Methods methhod,double h)
+{
+    SystemTask task;
 
-	task.y0 = new double[2] {0.01, 0};
-    task.h = 0.1;
-    task.n = 2;
 
-    F1System* system = new F1System[task.n];
+    const char** system = (const char**)malloc(n * sizeof(const char*));
 
-	system[0] = systemf3;
-	system[1] = systemf4;
+    std::string* storage = new std::string[n];
+
+
+    double* A = new double[n * n];
+
+    for (int i = 0; i < n; i++)
+    {
+        for (int j = 0; j < n; j++) {
+            if (i != j) {
+                A[i * n + j] = double(rand()) / double(RAND_MAX);
+            }
+            else {
+                A[i * n + j] = std::pow(10, (6.0 * double(i) / double(n - 1)));
+            }
+        }
+    }
+
+    for (int i = 0; i < n; i++) {
+
+        storage[i] += "sum(tanh(y) * A) + (y[" + std::to_string(i) + "] - tanh(y[" + std::to_string(i) + "])) * A[" + std::to_string(i) + "]";
+
+        system[i] = storage[i].c_str();
+    }
 
 	task.f = system;
 
-    task.method = m;
+	task.n = n;
 
-	double* res = new double[20000000];
+	task.method = methhod;
 
-	SolveDiffUrSystemArr(task,res);
+	task.h = h;
 
-	double tNow = task.t0;
-    int i = 1;
+	task.t0 = 0;
 
-	while (tNow + task.h < task.t1) {
-		std::cout << tNow << " " << res[(i-1)*task.n] << std::endl;
-		tNow = task.t0 + i * task.h ;
-		i++;
+	task.t1 = 1;
+
+    double* y0 = new double[n];
+
+    for (int i = 0; i < n; i++) {
+        y0[i] = 1;
+    }
+
+    task.y0 = y0;
+
+    ui* scal_count = new  ui[n];
+
+    //double** scal_consts = new double*[n];
+    //const char*** scal_names = new const char**[n] ;
+    
+
+    for (int i = 0; i < n; i++) {
+        scal_count[i] = 0;
+		//scal_consts[i] = new double[0]{};
+		//scal_names[i] = new const char* [0] {};
+
+       
+    }
+
+    ui* vec_count = new ui[n];
+
+	const ui** vec_lengts = new const ui* [n];
+
+    double** vec_consts = new double* [n];
+
+    const char*** vec_names = new const char** [n];
+
+	for (int i = 0; i < n; i++) {
+		vec_count[i] = 1;
+
+        vec_lengts[i] = new ui[1]{ n };
+
+        vec_consts[i] =  A + n * i;
+
+        vec_names[i] = new const char* [1] { "A"};
 	}
 
-    std::cout << tNow << " " << res[(i-1) * task.n] << std::endl;
-    std::cout << task.t1 << " " << res[i * task.n] << std::endl;
+    task.scal_count = scal_count;
 
+	//task.scal_consts = scal_consts;
+
+	//task.scal_names = scal_names;
+
+    task.vec_count = vec_count;
+
+    task.vec_lengts = vec_lengts;
+
+    task.vec_consts = vec_consts;
+
+    task.vec_names = vec_names;
+
+    return task;
 }
 
-double SystemFunction1(double x, const double* y) {
-    return -0.04 * y[0] + 10000 * y[1] * y[2];
-}
-
-double SystemFunction2(double x, const double* y)
+SystemTask CreateSystem5(unsigned int n, Methods methhod, double h)
 {
+    SystemTask task;
 
-    return 0.04 * y[0] - 10000 * y[1] * y[2] - 30000000 * y[1] * y[1];
-}
 
-double SystemFunction3(double x, const double* y)
-{
+    const char** system = (const char**)malloc(n * sizeof(const char*));
 
-    return 30000000 * y[1] * y[1];
-}
+    std::string* storage = new std::string[n];
 
-void ex10(double h, Methods method) {
-    SystemTask systemTask;
+    for (int i = 0; i < n; i++) {
 
-    systemTask.t0 = 0.0;
-    systemTask.t1 = 0.3;
-    systemTask.h = h;
-    systemTask.n = 3;
-    systemTask.method = method;
+        storage[i] += "cos(y[" + std::to_string(i) + "])";
 
-    double* y0 = new double[3];
-    y0[0] = 1;
-    y0[1] = 0;
-    y0[2] = 0;
-
-    systemTask.y0 = y0;
-
-    systemTask.f = new F1System[3]{ SystemFunction1, SystemFunction2, SystemFunction3 };
-
-    int size = 10000000;
-    double* resultX = new double[size];
-    double* resultY = new double[size * systemTask.n];
-
-    double time0 = omp_get_wtime();
-    int status = SolveDiffUrSystemArr(systemTask, resultY);
-    double time1 = omp_get_wtime();
-
-    int count = 0;
-
-    while (systemTask.t0 + systemTask.h * count < systemTask.t1) {
-        count++;
-    }
-    
-    std::cout << "res in t = " << systemTask.t1 << ": " << std::endl;
-
-    for (int i = 0; i < systemTask.n; i++) {
-
-        std::cout << "y" << i << " = " << resultY[systemTask.n * count + i] << std::endl;
+        system[i] = storage[i].c_str();
     }
 
-    std::cout << "step count: " << count << std::endl;
+    task.f = system;
 
-    std::cout << "time : " << time1 - time0 << " sec" << std::endl;
+    task.n = n;
 
-    /*std::cout << "full res: " << std::endl;
-    for (int i = 0; i < count * systemTask.n; i++) {
-        std::cout << resultY[i] << std::endl;
-    }*/
-}
-
-
-double func3(double x, double y) {
-    return -1000000 * (y - sin(x)) + cos(x);
-}
-
-double realFunc3(double x) {
-    return sin(x);
-}
-
-void expetiment11(double h, Methods method ) {
-
-    Task task = Task{};
+    task.method = methhod;
 
     task.h = h;
-    task.method = method;
-    task.x0 = 0;
-    task.y0 = realFunc3(task.x0);
-    task.x1 = 10;
 
-    task.f = new F1(func3);
+    task.t0 = 0;
 
-    int size = (int)((task.x1 - task.x0) / h) + 10;
+    task.t1 = 10;
+
+    double* y0 = new double[n];
+
+    for (int i = 0; i < n; i++) {
+        y0[i] = 1;
+    }
+
+    task.y0 = y0;
+
+    ui* scal_count = new  ui[n];
+    ui* vec_count = new ui[n];
+
+    for (int i = 0; i < n; i++) {
+        scal_count[i] = 0;
+        vec_count[i] = 0;
+    }
+
+    task.scal_count = scal_count;
+
+    task.vec_count = vec_count;
+
+    return task;
+}
+
+SystemTask CreateSystem6( Methods methhod, double h)
+{
+    SystemTask task;
+
+
+    const char** system = (const char**)malloc(3 * sizeof(const char*));
+
+    std::string* storage = new std::string[3];
+
+    storage[0] += "- 0.04 * y[0] + 10000 * y[1] * y[2]";
+
+    system[0] = storage[0].c_str();
+
+    storage[1] += " 0.04 * y[0] - 10000 * y[1] * y[2] - 30000000 * y[1] * y[1]";
+
+    system[1] = storage[1].c_str();
+
+    storage[2] += "30000000 * y[1] * y[1]";
+
+    system[2] = storage[2].c_str();
+    
+
+    task.f = system;
+
+    task.n = 3;
+
+    task.method = methhod;
+
+    task.h = h;
+
+    task.t0 = 0;
+
+    task.t1 = 6;
+
+    double* y0 = new double[3];
+
+    y0[0] = 1;
+
+    y0[1] = 0;
+
+    y0[2] = 0;
+
+    task.y0 = y0;
+
+    ui* scal_count = new  ui[3];
+    ui* vec_count = new ui[3];
+
+    for (int i = 0; i < 3; i++) {
+        scal_count[i] = 0;
+        vec_count[i] = 0;
+    }
+
+    task.scal_count = scal_count;
+
+    task.vec_count = vec_count;
+
+    return task;
+}
+
+
+void expetiment12(double h, Methods method ) {
+
+    ui n = 500;
+
+    //InitMemory(n * 2);
+
+    SystemTask task = CreateSystem4_5(n, method,h);
+
+    int size = ((int)((task.t1 - task.t0) / h) + 10) * task.n;
 
     double* res = new double[size];
 
+    double start, finish;
 
-    int status = SolveDiffUrArr(task, res);
+    /*start = omp_get_wtime();
+    int status = SolveDiffUrSystemArr(task, res);
+    finish = omp_get_wtime();
+
+    std::cout << finish - start << std::endl;*/
+
+    double time1 = 1;
+
+    for (int i = 4; i < 5; i++) {
+
+        std::cout << i << " thread\n";
+
+        SetThreadCount(i);
+
+        start = omp_get_wtime();
+        int status = SolveDiffUrSystemArr(task, res);
+        finish = omp_get_wtime();
+
+        std::cout << finish - start;
+
+        if (i == 1) {
+            time1 = finish - start;
+
+            std::cout << std::endl;
+
+        }
+        else {
+            std::cout << "X " << time1 / (finish - start)  << std::endl;
+        }
+
+    }
+
+    /*ui hCount = 0;
+
+    for (int i = 0;; i++) {
+        if (task.t0 + h * i >= task.t1) {
+            hCount = i;
+            break;
+        }
+    }
+
+    for (int i = 0; i < hCount; i++) {
+        for (int j = 0; j < task.n; j++) {
+            std::cout << std::setw(12) << res[i * task.n + j] << " ";
+        }
+        std::cout << std::endl;
+    }*/
 
 }
 
@@ -593,6 +977,11 @@ int main()
     /*std::cout << "Euler:" << std::endl;
     ex10(0.0005, Euler);*/
 
-    expetiment11( 0.001, RadoIIA);
+
+    //expetiment12(1, RK4);
+
+    expetiment12(0.000001, RadoIIA5);
+
+    
 
 }

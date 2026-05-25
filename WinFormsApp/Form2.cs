@@ -20,7 +20,7 @@ namespace WinFormsApp
         {
             InitializeComponent();
 
-            example1(Methods.RadoIIA,100);
+            //example1(Methods.RadoIIA,100);
 
             //example1(Methods.BackEuler, 100);
 
@@ -42,9 +42,9 @@ namespace WinFormsApp
 
             //example5(0.3, Methods.BackEuler, 0.0001, Methods.RK4);
 
-            //example6(0.001, Methods.RK4);
+            example6(0.01, Methods.BackEuler);
 
-            //example6(0.0001, Methods.Euler, 0.001, Methods.RK4);
+            //example6(0.1, Methods.Euler, 0.001, Methods.RK4);
 
             //example6(0.01, Methods.Euler, 0.01, Methods.RK4);
         }
@@ -118,7 +118,7 @@ namespace WinFormsApp
         }
 
             systemTask.y0 = DiffUrSolver.DiffUrSolver.DoubleArrayToIntPtr(y0);
-            systemTask.f = DiffUrSolver.DiffUrSolver.F1SystemToIntPtr(new F1System[] { SystemFunction1, SystemFunction2 });
+            //systemTask.f = DiffUrSolver.DiffUrSolver.F1SystemToIntPtr(new F1System[] { SystemFunction1, SystemFunction2 });
 
             DrawSystemPlot(systemTask, new F[] { RealSystemFunction1, RealSystemFunction2 });
         }
@@ -204,7 +204,7 @@ namespace WinFormsApp
             }
 
             systemTask.y0 = DiffUrSolver.DiffUrSolver.DoubleArrayToIntPtr(y0);
-            systemTask.f = DiffUrSolver.DiffUrSolver.F1SystemToIntPtr(new F1System[] { SystemFunction1, SystemFunction2, SystemFunction3 });
+            //systemTask.f = DiffUrSolver.DiffUrSolver.F1SystemToIntPtr(new F1System[] { SystemFunction1, SystemFunction2, SystemFunction3 });
 
             DrawSystemPlot(systemTask);
         }
@@ -260,10 +260,10 @@ namespace WinFormsApp
             }
 
             systemTask.y0 = DiffUrSolver.DiffUrSolver.DoubleArrayToIntPtr(y0);
-            systemTask.f = DiffUrSolver.DiffUrSolver.F1SystemToIntPtr(new F1System[] { SystemFunction1, SystemFunction2, SystemFunction3 });
+            //systemTask.f = DiffUrSolver.DiffUrSolver.F1SystemToIntPtr(new F1System[] { SystemFunction1, SystemFunction2, SystemFunction3 });
 
             systemTask2.y0 = DiffUrSolver.DiffUrSolver.DoubleArrayToIntPtr(y0);
-            systemTask2.f = DiffUrSolver.DiffUrSolver.F1SystemToIntPtr(new F1System[] { SystemFunction1, SystemFunction2, SystemFunction3 });
+            //systemTask2.f = DiffUrSolver.DiffUrSolver.F1SystemToIntPtr(new F1System[] { SystemFunction1, SystemFunction2, SystemFunction3 });
 
             DrawSystemPlotTwo(systemTask,systemTask2);
         }
@@ -530,23 +530,66 @@ namespace WinFormsApp
 
         }
 
+        IntPtr CreateSystem(uint n)
+        {
+            F1System[] system = new F1System[n];
 
+            double kh = 100;
+
+            system[0] = (double x, IntPtr y) =>
+            {
+                double[] array = new double[n];
+                Marshal.Copy(y, array, 0, (int)n);
+                return - array[0] + kh * (array[n - 1] - 2 * array[0] + array[1]) + 200;
+            };
+
+            for (int i = 1; i < n-1; i++)
+            {
+                int copy = (int)i;
+
+                system[i] = (double x, IntPtr y) =>
+                {
+                    double[] array = new double[n];
+                    Marshal.Copy(y, array, 0, (int)n);
+                    return - (double)(1 + copy % 100) * array[copy] + kh * (array[copy - 1] - 2 * array[copy] + array[copy + 1]) ;
+                };
+            }
+
+            system[n-1] = (double x, IntPtr y) =>
+            {
+
+
+                double[] array = new double[n];
+                Marshal.Copy(y, array, 0, (int)n);
+                return -(double)(1 + (n-1) % 100) * array[n-1] + kh * (array[n - 2] - 2 * array[n-1] + array[0]);
+            };
+
+            IntPtr res = DiffUrSolver.DiffUrSolver.F1SystemToIntPtr(system);
+
+            return res;
+        }
 
         public void example6(double h, Methods method)
         {
+
+            uint n = 1000;
+
+            DiffUrSolver.DiffUrSolver.SetThreadCount(1);
+            DiffUrSolver.DiffUrSolver.InitMemory(n);
+
             DiffUrSolver.SystemTask systemTask = new DiffUrSolver.SystemTask();
 
-            uint n = 30;
+            
 
-            BrusselatorSystem b = CreateBrusselatorSystem(((int)n), ((int)n), 0.02);
+            //BrusselatorSystem b = CreateBrusselatorSystem(((int)n1), ((int)n2), 0.02);
 
 
-            systemTask.y0 = b.y0;
-            systemTask.f = b.f;
-            systemTask.t0 = b.t0;
-            systemTask.t1 = 10;
+            systemTask.y0 = DiffUrSolver.DiffUrSolver.DoubleArrayToIntPtr( new double[n]);
+            systemTask.f = CreateSystem(n);
+            systemTask.t0 = 0;
+            systemTask.t1 = 1;
             systemTask.h = h;
-            systemTask.n = 2 * n * n;
+            systemTask.n = n;
             systemTask.method = method;
 
             DrawSystemPlot(systemTask);
@@ -556,7 +599,7 @@ namespace WinFormsApp
         {
             uint n = 30;
 
-            DiffUrSolver.DiffUrSolver.SetThreadCount(4);
+            DiffUrSolver.DiffUrSolver.SetThreadCount(1);
             DiffUrSolver.DiffUrSolver.InitMemory(2 * n * n);
 
             DiffUrSolver.SystemTask systemTask1 = new DiffUrSolver.SystemTask();
@@ -568,7 +611,7 @@ namespace WinFormsApp
 
 
             systemTask1.y0 = b.y0;
-            systemTask1.f = b.f;
+            //systemTask1.f = b.f;
             systemTask1.t0 = b.t0;
             systemTask1.t1 = 6;
             systemTask1.h = h;
@@ -576,7 +619,7 @@ namespace WinFormsApp
             systemTask1.method = method;
 
             systemTask2.y0 = b.y0;
-            systemTask2.f = b.f;
+            //systemTask2.f = b.f;
             systemTask2.t0 = b.t0;
             systemTask2.t1 = 6;
             systemTask2.h = h2;
@@ -815,7 +858,7 @@ namespace WinFormsApp
             double[] resultY = new double[10000];
 
 
-            int status =  DiffUrSolver.DiffUrSolver.SolveSecondDiffUrArr(task, ref resultY);
+            //int status =  DiffUrSolver.DiffUrSolver.SolveSecondDiffUrArr(task, ref resultY);
            
             resultX[0] = task.t0;
             int i = 1;
@@ -1132,7 +1175,15 @@ namespace WinFormsApp
             double[] resultX = new double[size];
             double[] resultY = new double[size * systemTask.n];
 
+            Stopwatch stopwatch = new Stopwatch();
+
+
+
+            stopwatch.Start();
+
             int status = DiffUrSolver.DiffUrSolver.SolveDiffUrSystemArr(systemTask, resultY);
+
+            stopwatch.Stop();
 
             int k = 0;
             while (systemTask.t0 + k * systemTask.h < systemTask.t1)
@@ -1180,7 +1231,16 @@ namespace WinFormsApp
                 }
 
 
+                plotModel.IsLegendVisible = true;
 
+                Legend l = new Legend();
+
+                l.LegendPosition = LegendPosition.RightTop;
+                l.LegendPlacement = LegendPlacement.Outside;
+                l.LegendOrientation = LegendOrientation.Vertical;
+                l.LegendTitle = "time: " + stopwatch.ElapsedMilliseconds + " ms";
+
+                plotModel.Legends.Add(l);
 
                 plotModel.Series.Add(MylineSeries);
 

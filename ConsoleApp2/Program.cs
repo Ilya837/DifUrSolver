@@ -8,6 +8,7 @@ using OxyPlot.Core.Drawing;
 using OxyPlot.WindowsForms;
 using System.Threading.Tasks;
 using System.Diagnostics;
+using System.Dynamic;
 
 
 
@@ -289,261 +290,379 @@ class Program
         return Math.Pow(Math.E, x) * (Math.Sin(5 * x) + Math.Cos(5 * x));
     }
 
-    static void experiment3(DiffUrSolver.Methods method)
+    //static void experiment3(DiffUrSolver.Methods method)
+    //{
+    //    DiffUrSolver.SystemTask task = new DiffUrSolver.SystemTask();
+
+    //    task.t0 = 0;
+    //    task.t1 = 4.0;
+    //    task.h = 0.001;
+    //    task.method = method;
+    //    task.n = 2;
+
+    //    double[] y0 = new double[6];
+    //    y0[0] = 1;
+    //    y0[1] = 1;
+
+    //    int size = Marshal.SizeOf(typeof(double)) * y0.Length;
+    //    IntPtr y0Ptr = Marshal.AllocHGlobal(size);
+    //    Marshal.Copy(y0, 0, y0Ptr, y0.Length);
+
+    //    task.y0 = y0Ptr;
+
+
+    //    double[] resultY = new double[task.n];
+
+    //    // Создаём массив IntPtr для хранения указателей на делегаты
+    //    IntPtr[] functionPointers = new IntPtr[2];
+
+    //    // Фиксируем делегаты в памяти, чтобы GC не перемещал их
+    //    GCHandle[] handles = new GCHandle[2];
+
+    //    F1System[] system = new F1System[2];
+
+    //    system[0] = SystemFunction1;
+    //    system[1] = SystemFunction2;
+
+    //    for (int i = 0; i < system.Length; i++)
+    //    {
+    //        handles[i] = GCHandle.Alloc(system[i]);
+    //        functionPointers[i] = Marshal.GetFunctionPointerForDelegate(system[i]);
+    //    }
+
+
+    //    GCHandle functionsArrayHandle = GCHandle.Alloc(functionPointers, GCHandleType.Pinned);
+
+    //    //task.f = functionsArrayHandle.AddrOfPinnedObject();
+
+
+    //    DiffUrSolver.DiffUrSolver.SolveDiffUrSystem(task, resultY);
+
+    //    for (int i = 0; i < task.n; i++)
+    //    {
+    //        Console.WriteLine(resultY[i]);
+    //    }
+
+    //    Console.WriteLine(RealSystemFunction1(task.t1));
+    //    Console.WriteLine(RealSystemFunction2(task.t1));
+
+    //}
+    //static void experiment4(DiffUrSolver.Methods method)
+    //{
+    //    DiffUrSolver.SystemTask task = new DiffUrSolver.SystemTask();
+
+    //    task.t0 = 0;
+    //    task.t1 = 4.0;
+    //    task.h = 0.001;
+    //    task.method = method;
+    //    task.n = 1;
+
+    //    double[] y0 = new double[1];
+    //    y0[0] = 0;
+    //    //y0[1] = 1;
+
+    //    task.y0 = DiffUrSolver.DiffUrSolver.DoubleArrayToIntPtr(y0);
+
+    //    double[] resultY = new double[task.n];
+
+    //    F1System[] system = new F1System[task.n];
+
+    //    system[0] = SystemFunctionSingle;
+
+    //    //task.f = DiffUrSolver.DiffUrSolver.F1SystemToIntPtr(system);
+
+    //    DiffUrSolver.DiffUrSolver.SolveDiffUrSystem(task, resultY);
+
+    //    for (int i = 0; i < task.n; i++)
+    //    {
+    //        Console.WriteLine(resultY[i]);
+    //    }
+
+    //    Console.WriteLine(realFunc1(task.t1));
+
+    //}
+
+    //static void experiment5(DiffUrSolver.Methods method)
+    //{
+    //    double c = 1.0;
+    //    double m = 1.0;
+    //    double k = 1.0;
+
+    //    DiffUrSolver.SecondTask task = new DiffUrSolver.SecondTask();
+    //    task.t0 = 0;
+    //    task.t1 = 10.0;
+    //    task.y_0 = 2;
+    //    task.y1_0 = 0;
+    //    task.h = 0.1;
+    //    task.A = 1;
+    //    task.B = c / m;
+    //    task.C = k / m;
+    //    task.D = 0;
+    //    task.method = method;
+    //    double result = 0;
+    //    //DiffUrSolver.DiffUrSolver.SolveSecondDiffUr(task, ref result);
+    //    Console.WriteLine(result.ToString());
+    //}
+    //static void experiment5Arr(DiffUrSolver.Methods method)
+    //{
+    //    double c = 4.47;
+    //    double m = 10.0;
+    //    double k = 50.0;
+
+    //    DiffUrSolver.SecondTask task = new DiffUrSolver.SecondTask();
+    //    task.t0 = 0;
+    //    task.t1 = 10;
+    //    task.y_0 = 0.01;
+    //    task.y1_0 = 0;
+    //    task.h = 0.1;
+    //    task.A = 1;
+    //    task.B = c / m;
+    //    task.C = k / m;
+    //    task.D = 0;
+    //    task.method = method;
+    //    double[] result = new double[10000];
+    //    //DiffUrSolver.DiffUrSolver.SolveSecondDiffUrArr(task, ref result);
+
+
+    //    double start = task.t0;
+    //    int j = 0;
+
+    //    while (start < task.t1)
+    //    {
+    //        Console.WriteLine(result[j * 2]);
+    //        j++;
+    //        start = task.t0 + j * task.h;
+    //    }
+    //}
+
+    //struct BrusselatorSystem
+    //{
+    //    public IntPtr f;
+    //    public IntPtr y0;
+    //    public double t0;
+    //    public int status;
+    //}
+
+    //static BrusselatorSystem CreateBrusselatorSystem(int n, double a)
+    //{
+
+    //    BrusselatorSystem res = new BrusselatorSystem();
+
+    //    if (n < 1)
+    //    {
+
+    //        res.status = -1;
+    //        return res;
+    //    }
+
+    //    F1System[] system = new F1System[n * 2];
+    //    double[] y = new double[2 * n];
+
+    //    for (int i = 0; i < n; i++)
+    //    {
+
+    //        int i1 = (n + i - 1) % n;
+    //        int i2 = i;
+    //        int i3 = (n + i + 1) % n;
+
+    //        F1System u = (double x, IntPtr y) =>
+    //        {
+    //            double[] array = new double[2 * n];
+    //            Marshal.Copy(y, array, 0, 2 * n);
+
+    //            return 1 + array[i2 * 2] * array[i2 * 2] * array[i2 * 2 + 1] -
+    //            4 * array[i2 * 2] + a * (n + 1) * (n + 1) *
+    //            (array[i1 * 2] - 2 * array[i2 * 2] + array[i3 * 2]);
+    //        };
+
+    //        F1System v = (double x, IntPtr y) =>
+    //        {
+    //            double[] array = new double[2 * n];
+    //            Marshal.Copy(y, array, 0, 2 * n);
+
+    //            return 3 * array[i2 * 2] - array[i2 * 2] * array[i2 * 2] * array[i2 * 2 + 1] +
+    //            a * (n + 1) * (n + 1) *
+    //            (array[i1 * 2 + 1] - 2 * array[i2 * 2 + 1] + array[i3 * 2 + 1]);
+    //        };
+
+    //        system[i * 2] = u;
+    //        system[i * 2 + 1] = v;
+
+    //        y[i * 2] = 1 + Math.Sin(2 * Math.PI * i / n);
+    //        y[i * 2 + 1] = 3;
+
+    //    }
+
+    //    res.status = 0;
+    //    res.f = DiffUrSolver.DiffUrSolver.F1SystemToIntPtr(system);
+    //    res.y0 = DiffUrSolver.DiffUrSolver.DoubleArrayToIntPtr(y);
+    //    res.t0 = 0;
+
+
+    //    return res;
+
+    //}
+
+    //static void experiment6(double h, Methods method,uint treadCount)
+    //{
+    //    DiffUrSolver.DiffUrSolver.SetThreadCount(treadCount);
+    //    DiffUrSolver.SystemTask systemTask = new DiffUrSolver.SystemTask();
+
+    //    uint n = 500;
+
+    //    BrusselatorSystem b = CreateBrusselatorSystem(((int)n), 0.02);
+
+
+    //    systemTask.y0 = b.y0;
+    //    //systemTask.f = b.f;
+    //    systemTask.t0 = b.t0;
+    //    systemTask.t1 = 10;
+    //    systemTask.h = h;
+    //    systemTask.n = 2 * n;
+    //    systemTask.method = method;
+
+    //    int size1 = (int)Math.Round((systemTask.t1 - systemTask.t0) / systemTask.h) + 10;
+    //    //double[] resultX = new double[size1];
+    //    double[] resultY = new double[systemTask.n];
+
+    //    Stopwatch stopwatch = new Stopwatch();
+
+    //    DiffUrSolver.DiffUrSolver.InitMemory(systemTask.n);
+
+    //    stopwatch.Start();
+
+    //    int status = DiffUrSolver.DiffUrSolver.SolveDiffUrSystem(systemTask, resultY);
+
+    //    stopwatch.Stop();
+
+    //    System.Console.WriteLine(stopwatch.ElapsedMilliseconds);
+    //    System.Console.WriteLine("result:");
+
+    //    for (int i = 0; i < systemTask.n; i++)
+    //    {
+    //        Console.WriteLine(resultY[i]);
+    //    }
+
+    //}
+
+    static string[] CreateSystem(uint n)
     {
-        DiffUrSolver.SystemTask task = new DiffUrSolver.SystemTask();
+        string[] system = new string[n];
 
-        task.t0 = 0;
-        task.t1 = 4.0;
-        task.h = 0.001;
-        task.method = method;
-        task.n = 2;
+        double kh = 100;
 
-        double[] y0 = new double[6];
-        y0[0] = 1;
-        y0[1] = 1;
+        system[0] = " - y[0] + " + kh + " * ( y[" + (n - 1) + "] - 2 * y[0] + y[1] ) + 200";
 
-        int size = Marshal.SizeOf(typeof(double)) * y0.Length;
-        IntPtr y0Ptr = Marshal.AllocHGlobal(size);
-        Marshal.Copy(y0, 0, y0Ptr, y0.Length);
+        
 
-        task.y0 = y0Ptr;
-
-
-        double[] resultY = new double[task.n];
-
-        // Создаём массив IntPtr для хранения указателей на делегаты
-        IntPtr[] functionPointers = new IntPtr[2];
-
-        // Фиксируем делегаты в памяти, чтобы GC не перемещал их
-        GCHandle[] handles = new GCHandle[2];
-
-        F1System[] system = new F1System[2];
-
-        system[0] = SystemFunction1;
-        system[1] = SystemFunction2;
-
-        for (int i = 0; i < system.Length; i++)
+        for (int i = 1; i < n - 1; i++)
         {
-            handles[i] = GCHandle.Alloc(system[i]);
-            functionPointers[i] = Marshal.GetFunctionPointerForDelegate(system[i]);
+
+            system[i] = "- (1.0 / " + i + " % 100) * y[ " + i + " ] + "
+                + kh + " * (y[" + (i - 1) + "] - 2 * y[" + i + "] + y[" + (i + 1) + "])";
+
         }
 
-
-        GCHandle functionsArrayHandle = GCHandle.Alloc(functionPointers, GCHandleType.Pinned);
-
-        task.f = functionsArrayHandle.AddrOfPinnedObject();
+        system[n - 1] = "-(1.0 / (" + (n - 1) + ") % 100) * y[" + (n - 1) + "] + " + kh + " * (y[" + (n - 2) + "] - 2 * y[" + (n - 1) + "] + y[0])";
 
 
-        DiffUrSolver.DiffUrSolver.SolveDiffUrSystem(task, resultY);
 
-        for (int i = 0; i < task.n; i++)
-        {
-            Console.WriteLine(resultY[i]);
-        }
-
-        Console.WriteLine(RealSystemFunction1(task.t1));
-        Console.WriteLine(RealSystemFunction2(task.t1));
-
-    }
-    static void experiment4(DiffUrSolver.Methods method)
-    {
-        DiffUrSolver.SystemTask task = new DiffUrSolver.SystemTask();
-
-        task.t0 = 0;
-        task.t1 = 4.0;
-        task.h = 0.001;
-        task.method = method;
-        task.n = 1;
-
-        double[] y0 = new double[1];
-        y0[0] = 0;
-        //y0[1] = 1;
-
-        task.y0 = DiffUrSolver.DiffUrSolver.DoubleArrayToIntPtr(y0);
-
-        double[] resultY = new double[task.n];
-
-        F1System[] system = new F1System[task.n];
-
-        system[0] = SystemFunctionSingle;
-
-        task.f = DiffUrSolver.DiffUrSolver.F1SystemToIntPtr(system);
-
-        DiffUrSolver.DiffUrSolver.SolveDiffUrSystem(task, resultY);
-
-        for (int i = 0; i < task.n; i++)
-        {
-            Console.WriteLine(resultY[i]);
-        }
-
-        Console.WriteLine(realFunc1(task.t1));
-
+        return system;
     }
 
-    static void experiment5(DiffUrSolver.Methods method)
+    static string[] CreateSystem2(uint n)
     {
-        double c = 1.0;
-        double m = 1.0;
-        double k = 1.0;
+        string[] system = new string[n];
 
-        DiffUrSolver.SecondTask task = new DiffUrSolver.SecondTask();
-        task.t0 = 0;
-        task.t1 = 10.0;
-        task.y_0 = 2;
-        task.y1_0 = 0;
-        task.h = 0.1;
-        task.A = 1;
-        task.B = c / m;
-        task.C = k / m;
-        task.D = 0;
-        task.method = method;
-        double result = 0;
-        DiffUrSolver.DiffUrSolver.SolveSecondDiffUr(task, ref result);
-        Console.WriteLine(result.ToString());
+        //for (int i = 1; i < n - 1; i++)
+        //{
+
+        //    system[i] = "- 10^(6 * "+i+" / "+ n +") * y("+i+") + sin(x)";
+        //}
+
+        //system[n - 1] = "-(double)(1 + (" + n + " - 1) % 100) * y(" + n + " - 1) + " + kh + " * (y(" + n + " - 2) - 2 * y(" + n + " - 1) + y(0))";
+
+
+        return system;
     }
-    static void experiment5Arr(DiffUrSolver.Methods method)
-    {
-        double c = 4.47;
-        double m = 10.0;
-        double k = 50.0;
-
-        DiffUrSolver.SecondTask task = new DiffUrSolver.SecondTask();
-        task.t0 = 0;
-        task.t1 = 10;
-        task.y_0 = 0.01;
-        task.y1_0 = 0;
-        task.h = 0.1;
-        task.A = 1;
-        task.B = c / m;
-        task.C = k / m;
-        task.D = 0;
-        task.method = method;
-        double[] result = new double[10000];
-        DiffUrSolver.DiffUrSolver.SolveSecondDiffUrArr(task, ref result);
-
-
-        double start = task.t0;
-        int j = 0;
-
-        while (start < task.t1)
-        {
-            Console.WriteLine(result[j * 2]);
-            j++;
-            start = task.t0 + j * task.h;
-        }
-    }
-
-    struct BrusselatorSystem
-    {
-        public IntPtr f;
-        public IntPtr y0;
-        public double t0;
-        public int status;
-    }
-
-    static BrusselatorSystem CreateBrusselatorSystem(int n, double a)
+    static void experiment7(double h, Methods method)
     {
 
-        BrusselatorSystem res = new BrusselatorSystem();
+        
 
-        if (n < 1)
-        {
-
-            res.status = -1;
-            return res;
-        }
-
-        F1System[] system = new F1System[n * 2];
-        double[] y = new double[2 * n];
-
-        for (int i = 0; i < n; i++)
-        {
-
-            int i1 = (n + i - 1) % n;
-            int i2 = i;
-            int i3 = (n + i + 1) % n;
-
-            F1System u = (double x, IntPtr y) =>
-            {
-                double[] array = new double[2 * n];
-                Marshal.Copy(y, array, 0, 2 * n);
-
-                return 1 + array[i2 * 2] * array[i2 * 2] * array[i2 * 2 + 1] -
-                4 * array[i2 * 2] + a * (n + 1) * (n + 1) *
-                (array[i1 * 2] - 2 * array[i2 * 2] + array[i3 * 2]);
-            };
-
-            F1System v = (double x, IntPtr y) =>
-            {
-                double[] array = new double[2 * n];
-                Marshal.Copy(y, array, 0, 2 * n);
-
-                return 3 * array[i2 * 2] - array[i2 * 2] * array[i2 * 2] * array[i2 * 2 + 1] +
-                a * (n + 1) * (n + 1) *
-                (array[i1 * 2 + 1] - 2 * array[i2 * 2 + 1] + array[i3 * 2 + 1]);
-            };
-
-            system[i * 2] = u;
-            system[i * 2 + 1] = v;
-
-            y[i * 2] = 1 + Math.Sin(2 * Math.PI * i / n);
-            y[i * 2 + 1] = 3;
-
-        }
-
-        res.status = 0;
-        res.f = DiffUrSolver.DiffUrSolver.F1SystemToIntPtr(system);
-        res.y0 = DiffUrSolver.DiffUrSolver.DoubleArrayToIntPtr(y);
-        res.t0 = 0;
-
-
-        return res;
-
-    }
-
-    static void experiment6(double h, Methods method,uint treadCount)
-    {
-        DiffUrSolver.DiffUrSolver.SetThreadCount(treadCount);
         DiffUrSolver.SystemTask systemTask = new DiffUrSolver.SystemTask();
 
-        uint n = 500;
+        uint n = 1000;
 
-        BrusselatorSystem b = CreateBrusselatorSystem(((int)n), 0.02);
+        if (method == Methods.RadoIIA)
+        {
+            DiffUrSolver.DiffUrSolver.InitMemory(n*2);
+
+        } else
+        {
+            DiffUrSolver.DiffUrSolver.InitMemory(n);
+        }
+
+            //BrusselatorSystem b = CreateBrusselatorSystem(((int)n1), ((int)n2), 0.02);
 
 
-        systemTask.y0 = b.y0;
-        systemTask.f = b.f;
-        systemTask.t0 = b.t0;
-        systemTask.t1 = 10;
+            systemTask.y0 = DiffUrSolver.DiffUrSolver.DoubleArrayToIntPtr(new double[n]);
+        systemTask.f =  DiffUrSolver.DiffUrSolver.StringArrayToIntPtr( CreateSystem(n));
+        systemTask.t0 = 0;
+        systemTask.t1 = 1;
         systemTask.h = h;
-        systemTask.n = 2 * n;
+        systemTask.n = n;
         systemTask.method = method;
 
-        int size1 = (int)Math.Round((systemTask.t1 - systemTask.t0) / systemTask.h) + 10;
+        int size1 = (int)Math.Round((systemTask.t1 - systemTask.t0) / systemTask.h + 2) * (int)(n);
         //double[] resultX = new double[size1];
-        double[] resultY = new double[systemTask.n];
+        double[] resultY = new double[size1];
+
+        double time1 = 1;
 
         Stopwatch stopwatch = new Stopwatch();
 
-        DiffUrSolver.DiffUrSolver.InitMemory(systemTask.n);
-
-        stopwatch.Start();
-
-        int status = DiffUrSolver.DiffUrSolver.SolveDiffUrSystem(systemTask, resultY);
-
-        stopwatch.Stop();
-
-        System.Console.WriteLine(stopwatch.ElapsedMilliseconds);
-        System.Console.WriteLine("result:");
-
-        for (int i = 0; i < systemTask.n; i++)
+        for (int i = 1; i < 5; i++)
         {
-            Console.WriteLine(resultY[i]);
+
+            System.Console.WriteLine(i + " threads");
+
+            DiffUrSolver.DiffUrSolver.SetThreadCount((uint)(i));
+
+            stopwatch.Start();
+
+            int status = DiffUrSolver.DiffUrSolver.SolveDiffUrSystemArr(systemTask, resultY);
+
+            stopwatch.Stop();
+
+            double time = stopwatch.Elapsed.TotalSeconds;
+
+            if (i == 1)
+            {
+                time1 = time;
+
+                System.Console.WriteLine(time1);
+            } else
+            {
+                System.Console.WriteLine(time + " X " + time1 / time);
+            }
+
+            stopwatch.Restart();
+
         }
 
-    }
+        //System.Console.WriteLine(stopwatch.ElapsedMilliseconds);
+        //System.Console.WriteLine("result:");
 
+        //for (int i = 0; i < systemTask.n * size1; i++)
+        //{
+        //    if (resultY[i] == double.NaN)
+        //    {
+        //        System.Console.WriteLine("wrong ansfer");
+        //        break;
+        //    }
+        //}
+    }
 
 
 
@@ -562,12 +681,12 @@ class Program
 
         //experiment4(Methods.Euler);
 
-        experiment6(0.00001, Methods.Euler, 1);
+        //experiment6(0.00001, Methods.Euler, 1);
 
         //experiment6(0.02, Methods.BackEuler, 4);
 
-        //for (uint i = 1; i <= 4; i++) {
-        //    experiment6(0.02, Methods.BackEuler, i);
-        //}
+        
+        experiment7(0.1, Methods.RadoIIA);
+        
     }
 }

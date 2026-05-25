@@ -8,15 +8,22 @@
 #include <vector>
 #include <limits>
 #include <functional>
+#include <new>
 #include <omp.h>
+#include <exprtk.hpp>
 
 typedef std::vector<std::function<double(double*)>> DiffFSystem;
+
+typedef std::vector<std::function<double(double, double*, double)>> DiffFSystemIRK;
+
+typedef std::vector<std::unique_ptr<CompiledFunction>> F1System;
 
 double* MemoryTmp::stepArr = nullptr;
 ui* MemoryTmp::arrUI1 = nullptr;
 double* MemoryTmp::arr1 = nullptr;
 double* MemoryTmp::arr2 = nullptr;
 double* MemoryTmp::arr3 = nullptr;
+double* MemoryTmp::arr4 = nullptr;
 double* MemoryTmp::matrix1 = nullptr;
 double* MemoryTmp::matrix2 = nullptr;
 
@@ -26,11 +33,9 @@ ui MemoryTmp::NarrUI1 = 0;
 ui MemoryTmp::Narr1 = 0;
 ui MemoryTmp::Narr2 = 0;
 ui MemoryTmp::Narr3 = 0;
+ui MemoryTmp::Narr4 = 0;
 ui MemoryTmp::Nmatrix1 = 0;
 ui MemoryTmp::Nmatrix2 = 0;
-
-
-
 
 double EulerStep(double x0, double y0, double h, F1 f)
 {
@@ -189,18 +194,18 @@ double AutoMethodStep(double x0, double y0, double h, F1 f, double eps,bool& les
 	return res1;
 }
 
-void EulerSystemStep(double x0,const double* y0, double* yStep, ui n, double h, F1System* f)
+void EulerSystemStep(double x0,double* y0, double* yStep, ui n, double h, F1System& f)
 {
 	for (ui i = 0; i < n; i++) {
-		yStep[i] = h * f[i](x0, y0);
+		yStep[i] = h * f[i]->eval(x0, y0);
 	}
 }
 
-void RK2SystemStep(double x0,const double* y0, double* yStep, ui n, double h, F1System* f)
+void RK2SystemStep(double x0,double* y0, double* yStep, ui n, double h, F1System& f)
 {
 
 	for (ui i = 0; i < n; i++) {
-		yStep[i] = f[i](x0, y0);
+		yStep[i] = f[i]->eval(x0, y0);
 	}
 
 	for (ui i = 0; i < n; i++) {
@@ -209,15 +214,15 @@ void RK2SystemStep(double x0,const double* y0, double* yStep, ui n, double h, F1
 	}
 
 	for (ui i = 0; i < n; i++) {
-		yStep[i] = h * (yStep[i] + f[i](x0 + h, MemoryTmp::arr1)) / 2;
+		yStep[i] = h * (yStep[i] + f[i]->eval(x0 + h, MemoryTmp::arr1)) / 2;
 	}
 }
 
-void RK4SystemStep(double x0,const double* y0, double* yStep, ui n, double h, F1System* f) {
+void RK4SystemStep(double x0,double* y0, double* yStep, ui n, double h, F1System& f) {
 
 	
 	for (ui i = 0; i < n; i++) {
-		yStep[i] = MemoryTmp::arr1[i] = f[i](x0, y0);
+		yStep[i] = MemoryTmp::arr1[i] = f[i]->eval(x0, y0);
 	}
 
 	for (ui i = 0; i < n; i++) {
@@ -225,7 +230,7 @@ void RK4SystemStep(double x0,const double* y0, double* yStep, ui n, double h, F1
 	}
 
 	for (ui i = 0; i < n; i++) {
-		yStep[i] += 2 * (MemoryTmp::arr1[i] = f[i](x0 + h / 2, MemoryTmp::arr2));
+		yStep[i] += 2 * (MemoryTmp::arr1[i] = f[i]->eval(x0 + h / 2, MemoryTmp::arr2));
 	}
 
 	for (ui i = 0; i < n; i++) {
@@ -233,7 +238,7 @@ void RK4SystemStep(double x0,const double* y0, double* yStep, ui n, double h, F1
 	}
 
 	for (ui i = 0; i < n; i++) {
-		yStep[i] += 2 * (MemoryTmp::arr1[i] = f[i](x0 + h / 2, MemoryTmp::arr2));
+		yStep[i] += 2 * (MemoryTmp::arr1[i] = f[i]->eval(x0 + h / 2, MemoryTmp::arr2));
 	}
 
 	for (ui i = 0; i < n; i++) {
@@ -241,41 +246,54 @@ void RK4SystemStep(double x0,const double* y0, double* yStep, ui n, double h, F1
 	}
 
 	for (ui i = 0; i < n; i++) {
-		yStep[i] += f[i](x0 + h, MemoryTmp::arr2);
+		yStep[i] += f[i]->eval(x0 + h, MemoryTmp::arr2);
 		yStep[i] = yStep[i] * h / 6;
 	}
 
 }
 
-void J( double* y, double* res, ui n, DiffFSystem f) {
+void J( double* y, double* res, ui n, DiffFSystem& f) {
 	double exp = 1e-8;
 
-	#pragma omp parallel
+#pragma omp parallel
 	{
-		double* copy_plus = new double[n];
-		std::copy(y, y + n, copy_plus);
+		std::vector<double> copy_y(n);
+		std::vector<double> f_plus(n);
+		std::vector<double> f_minus(n);
 
-		double* copy_minus = new double[n];
-		std::copy(y, y + n, copy_minus);
+		std::memcpy(copy_y.data(), y, n * sizeof(double));
 
-		#pragma omp for
+#pragma omp for
 		for (int j = 0; j < n; j++) {
-			copy_plus[j] += exp;
-			copy_minus[j] -= exp;
+
+			double old = copy_y[j];
+
 			for (int i = 0; i < n; i++) {
-				double f_plus = f[i](copy_plus);
-				double f_minus = f[i](copy_minus);
-				res[i * n + j] = (f_plus - f_minus) / (2 * exp);
+
+				old = copy_y[i];
+
+				copy_y[i] += exp;
+
+				f_plus[i] = f[j](copy_y.data());
+
+				copy_y[i] = old - exp;
+
+				f_minus[i] = f[j](copy_y.data());
+
+				copy_y[i] = old;
+				
 			}
-			copy_plus[j] = y[j];
-			copy_minus[j] = y[j];
+
+
+			for (int i = 0; i < n; i++) {
+				res[j * n + i] = (f_plus[i] - f_minus[i]) / (2 * exp);
+			}
 
 		}
 
-		delete[] copy_plus;
-		delete[] copy_minus;
 	}
 }
+
 
 // will break original matrix
 void InverseMatrix(double* matrix, double* tmp, ui n) {
@@ -380,6 +398,12 @@ void countP(ui* P,const double* A, ui n) {
 	{
 
 		for (int i = 0; i < n; i++) {
+
+#pragma omp single
+			{
+				global_max = 0;
+				global_idx = 0;
+			}
 
 			double local_max = 0;
 			ui local_idx = 0;
@@ -529,9 +553,9 @@ void PLU(const double* A, ui* P, double* LUMatrix, ui n) {
 
 	
 
-#pragma omp parallel for num_threads(2)
+//#pragma omp parallel for num_threads(2)
 	for (int i = 0; i < n; i++) {
-		std::copy(A + P[i] * n, A + P[i] * n + n, LUMatrix + i * n);
+		std::memcpy(LUMatrix + i * n, A + P[i] * n, n * sizeof(double));
 	}
 
 
@@ -574,7 +598,7 @@ void PLU(const double* A, ui* P, double* LUMatrix, ui n) {
 	
 }
 
-void Axb(const double* A,double* b, double* res, ui n) {
+void Axb(const double* A,const double* b, double* res,const ui n) {
 
 	double* LUmatrix = MemoryTmp::matrix2;
 
@@ -582,7 +606,7 @@ void Axb(const double* A,double* b, double* res, ui n) {
 
 	PLU(A, P, LUmatrix, n);
 
-	double* y = MemoryTmp::arr2;
+	double* y = MemoryTmp::arr3;
 
 	for (int i = 0; i < n; i++) {
 		y[i] = b[P[i]];
@@ -624,7 +648,7 @@ void Axb2(const double* A, double* b, double* res) {
 
 }
 
-void BackEulerSystemStep(double x0, const double* y0, double* yStep, ui n, double h, F1System* f) {
+void BackEulerSystemStep(double x0,double* y0, double* yStep, ui n, double h, F1System& f) {
 	double diff_lim = 1e-12;
 	int max_iter = 10;
 	double x_next = x0 + h;
@@ -637,18 +661,18 @@ void BackEulerSystemStep(double x0, const double* y0, double* yStep, ui n, doubl
 	DiffFSystem system(n);
 
 	for (int i = 0; i < n; i++) {
-		yStep[i] = y0[i] + h * f[i](x0,y0);
+		yStep[i] = y0[i] + h * f[i]->eval(x0,y0);
 	}
 
 	for (int i = 0; i < n; i++) {
-		system[i] = [&,i](double* yy) {
-			return yy[i] - y0[i] - h * f[i](x_next, yy);
+		system[i] = [&, i, x_next](double* yy) {
+			return yy[i] - y0[i] - h * f[i]->eval(x_next, yy);
 			};
 	}
 
 	double* b = MemoryTmp::arr1;
 
-	double* stepdel = MemoryTmp::arr3;
+	double* stepdel = MemoryTmp::arr2;
 
 	for (int i = 0; i < max_iter; i++) {
 
@@ -667,7 +691,7 @@ void BackEulerSystemStep(double x0, const double* y0, double* yStep, ui n, doubl
 		bool flag = false;
 
 		for (ui j = 0; j < n; j++) {
-			double diff = std::abs(yStep[j] - h * f[j](x_next, yStep) - y0[j]);
+			double diff = std::abs(yStep[j] - h * f[j]->eval(x_next, yStep) - y0[j]);
 			if (diff > diff_lim) {
 				flag = true;
 				break;
@@ -684,6 +708,411 @@ void BackEulerSystemStep(double x0, const double* y0, double* yStep, ui n, doubl
 	
 }
 
+void BackEulerSystemArr(double x0, double x1, const double* y0, double* res, ui n, double h, F1System& f) {
+
+	double diff_lim = 1e-12;
+	int max_iter = 10;
+
+	MemoryTmp::initArr1(n);
+	MemoryTmp::initArr2(n);
+	MemoryTmp::initArr3(n);
+	MemoryTmp::initArrUI1(n);
+
+	MemoryTmp::initMatrix1(n);
+	MemoryTmp::initMatrix2(n);
+
+	double x_next = x0 + h;
+	double x_now = x0;
+	double* y_now = res;
+	double* yStep = res + n;
+
+	
+	std::memcpy(y_now, y0, n * sizeof(double));
+
+
+	double* A = MemoryTmp::matrix1;
+
+	double* b = MemoryTmp::arr1;
+
+	double* stepdel = MemoryTmp::arr2;
+
+	double sum = 0;
+	double eps = 1e-6;
+
+	DiffFSystem system(n);
+
+#pragma omp parallel for schedule(static)
+	for (int i = 0; i < n; i++) {
+		system[i] = [&, i](double* yy) {
+			return yy[i] - y_now[i] - h * f[i]->eval(x_next, yy);
+		};
+	}
+
+	int step;
+
+	for (step = 0; x0 + h * (step + 1) < x1; step++) {
+
+		x_next = x0  + h * (step + 1);
+		x_now  = x0  + h *  step;
+		y_now  = res + n *  step;
+		yStep  = res + n * (step + 1);
+
+#pragma omp parallel for schedule(static)
+		for (int i = 0; i < n; i++) {
+			yStep[i] = y_now[i] + h * f[i]->eval(x_now, y_now);
+		}
+
+		for (int i = 0; i < max_iter; i++) {
+
+			J(yStep, A, n, system);
+
+			for (int j = 0; j < n; j++) {
+				b[j] = -system[j](yStep);
+			}
+
+			Axb(A, b, stepdel, n);
+
+			for (int j = 0; j < n; j++) {
+				yStep[j] += stepdel[j];
+			}
+
+			bool flag = false;
+
+			for (ui j = 0; j < n; j++) {
+				double diff = std::abs(system[j](yStep));
+				if (diff > diff_lim) {
+					flag = true;
+					break;
+				}
+			}
+
+			if (!flag) break;
+
+		}
+	}
+
+	x_next = x1;
+	x_now = x0 + h * step;
+	y_now = res + n * step;
+	yStep = res + n * (step + 1);
+
+#pragma omp parallel for schedule(static)
+	for (int i = 0; i < n; i++) {
+		yStep[i] = y_now[i] + h * f[i]->eval(x_now, y_now);
+	}
+
+	for (int i = 0; i < max_iter; i++) {
+
+		J(yStep, A, n, system);
+
+		for (int j = 0; j < n; j++) {
+			b[j] = -system[j](yStep);
+		}
+
+		Axb(A, b, stepdel, n);
+
+		for (int j = 0; j < n; j++) {
+			yStep[j] += stepdel[j];
+		}
+
+		bool flag = false;
+
+		for (ui j = 0; j < n; j++) {
+			double diff = std::abs(system[j](yStep));
+			if (diff > diff_lim) {
+				flag = true;
+				break;
+			}
+		}
+
+		if (!flag) break;
+
+	}
+
+
+
+}
+
+void JIRK(const double x,const double h, const double* y,const double* k,const double* A,const double* c, double* res,const ui n,const ui s, DiffFSystemIRK& f) {
+	double exp = 1e-8;
+
+#pragma omp parallel
+	{
+
+		std::vector<double> copy_y(n * s);
+		std::vector<double> f_plus(n*s);
+		std::vector<double> f_minus(n*s);
+
+		std::vector<double> xs(s);
+
+		for (int i = 0; i < s; i++) {
+			xs[i] = x + h * c[i];
+		}
+
+		std::memcpy(copy_y.data(), y, n * s * sizeof(double));
+
+#pragma omp for
+		for (int i = 0; i < n; i++) { // номер группы из s строк
+
+			for (int l = 0; l < s; l++) { //номер в группе  из s строк
+
+				int row_ind = i * s + l;
+
+				double old; 
+
+				for (int j = 0; j < n; j++) {
+
+					int y_ind = l * n + j;
+
+					for (int m = 0; m < s; m++) {
+
+						int col_ind = j * s + m;
+
+
+						old = copy_y[y_ind];
+
+						copy_y[y_ind] += exp * h * A[l * s + m];
+
+						if (row_ind == col_ind) {
+							f_plus[col_ind] = f[row_ind](xs[l], copy_y.data() + l * n,exp);
+						}
+						else {
+							f_plus[col_ind] = f[row_ind](xs[l], copy_y.data() + l * n, 0);
+						}
+
+						copy_y[y_ind] = old - exp * h * A[l * s + m];
+
+						if (row_ind == col_ind) {
+							f_minus[col_ind] = f[row_ind](xs[l], copy_y.data() + l * n, - exp);
+						}
+						else {
+							f_minus[col_ind] = f[row_ind](xs[l], copy_y.data() + l * n, 0);
+						}
+
+						copy_y[y_ind] = old;
+					}
+
+				}
+
+				int row_step = row_ind * n * s;
+
+				for (int j = 0; j < n * s; j++) {
+					res[row_step + j] = (f_plus[j] - f_minus[j]) / (2 * exp);
+				}
+			}
+
+		}
+
+	}
+}
+
+void countK(const double* A,const double* k,const double* y_now,const ui n, const ui s, const double h, double* res) {
+
+	for (int l = 0; l < s; l++) {
+		std::memcpy(res + l * n, y_now, n * sizeof(double));
+	}
+
+#pragma omp parallel for schedule(static) 
+	for (int i = 0; i < s; i++) {
+		for (int j = 0; j < n; j++) {
+
+			int index = i * n + j;
+
+			double sum = 0;
+
+			for (int l = 0; l < s; l++) {
+				sum += A[i * s + l] * k[j * s + l];
+			}
+
+			res[index] += h * sum;
+		}
+	}
+}
+
+
+void IRKSystemArr(double x0, double x1, const double* y0, double* res,const ui n,const double h, const double* A, const double* b, const double* c, const ui s, F1System& f) {
+	double diff_lim = 1e-10;
+	int max_iter = 10;
+
+	MemoryTmp::initArr1(n * s);
+	MemoryTmp::initArr2(n * s);
+	MemoryTmp::initArr3(n * s);
+	MemoryTmp::initArr4(n * s);
+	MemoryTmp::initArrUI1(n * s);
+
+	MemoryTmp::initMatrix1(n * s);
+	MemoryTmp::initMatrix2(n * s);
+
+	double x_next = x0 + h;
+	double x_now = x0;
+	double* y_now = res;
+	double* yStep = res + n;
+
+
+	std::memcpy(y_now, y0, n * sizeof(double));
+
+
+	double* A_axb = MemoryTmp::matrix1;  // (n*s)^2
+
+	double* b_axb = MemoryTmp::arr1;    // n * s
+
+	double* stepdel = MemoryTmp::arr2;  // n * s
+
+	std::vector<double> xs(s);
+
+	double* copy_y_global = MemoryTmp::arr3;
+	//std::vector<double> copy_y_global(n * s);
+
+	double sum = 0;
+	double eps = 1e-6;
+
+	DiffFSystemIRK system(n * s);
+
+	double* k = MemoryTmp::arr4; // n * s
+
+	for (int i = 0; i < n; i++) {
+		k[i * s] = f[i]->eval(x_now, y_now);
+		for (int l = 1; l < s; l++) {
+			k[i * s + l] = k[i * s];
+		}
+	}
+
+#pragma omp parallel for
+	for (int i = 0; i < n; i++) {
+		for (int j = 0; j < s; j++) {
+			system[i * s + j] = [&f,i,j, s, &k](double x, double* y, double exp) {
+				return (k[i*s + j] + exp) - f[i]->eval(x, y);
+				};
+		}
+	}
+
+	int step;
+
+	for (step = 0; x0 + h * (step + 1) < x1; step++) {
+
+		x_now = x0 + h * step;
+		y_now = res + n * step;
+		yStep = res + n * (step + 1);
+
+		for (int i = 0; i < max_iter; i++) {
+
+			countK(A, k, y_now, n, s, h, copy_y_global);			
+
+			JIRK(x_now, h, copy_y_global,k, A, c, A_axb, n, s, system);
+
+			for (int j = 0; j < s; j++) {
+				xs[j] = x_now + h * c[j];
+			}
+
+			for (int j = 0; j < n; j++) {
+				for (int l = 0; l < s; l++) {
+					b_axb[j*s + l] = -system[j * s + l](xs[l], copy_y_global + l * n, 0);
+				}
+			}
+
+			Axb(A_axb, b_axb, stepdel, n*s);
+
+			for (int j = 0; j < n*s; j++) {
+				k[j] += stepdel[j];
+			}
+
+			bool flag = false;
+
+			countK(A, k, y_now, n, s, h, copy_y_global);
+
+
+			for (ui j = 0; j < n ; j++) {
+				for (int l = 0; l < s; l++) {
+					double diff = std::abs(system[j*s + l](xs[l], copy_y_global + l * n,0));
+					if (diff > diff_lim) {
+						flag = true;
+						break;
+					}
+				}
+				if (flag) break;
+			}
+
+			if (!flag || i == max_iter - 1) {
+				for (int j = 0; j < n; j++) 
+				{
+						yStep[j] = y_now[j];
+
+						double sum = 0;
+						for (int l = 0; l < s; l++) {
+							sum += k[j*s+l] * b[l];
+						}
+
+						yStep[j] += h * sum;
+				}
+
+				break;
+			}
+
+		}
+	}
+
+	x_now = x0 + h * step;
+	y_now = res + n * step;
+	yStep = res + n * (step + 1);
+
+	for (int i = 0; i < max_iter; i++) {
+
+
+		countK(A, k, y_now, n, s, h, copy_y_global);
+
+
+		for (int i = 0; i < s; i++) {
+			xs[i] = x_now + h * c[i];
+		}
+
+		JIRK(x_now, h, copy_y_global, k, A, c, A_axb, n, s, system);
+
+		for (int j = 0; j < n; j++) {
+			for (int l = 0; l < s; l++) {
+				b_axb[j * s + l] = -system[j * s + l](xs[l], copy_y_global + l * n,0);
+			}
+		}
+
+		Axb(A_axb, b_axb, stepdel, n*s);
+
+		for (int j = 0; j < n * s; j++) {
+			k[j] += stepdel[j];
+		}
+
+		bool flag = false;
+
+		countK(A, k, y_now, n, s, h, copy_y_global);
+
+
+		for (ui j = 0; j < n; j++) {
+			for (int l = 0; l < s; l++) {
+				double diff = std::abs(system[j * s + l](xs[l], copy_y_global + l * n,0));
+				if (diff > diff_lim) {
+					flag = true;
+					break;
+				}
+			}
+			if (flag) break;
+		}
+
+		if (!flag || i == max_iter - 1) {
+			for (int j = 0; j < n; j++)
+			{
+				yStep[j] = y_now[j];
+
+				double sum = 0;
+				for (int l = 0; l < s; l++) {
+					sum += k[j * s + l] * b[l];
+				}
+
+				yStep[j] += h * sum;
+			}
+
+			break;
+		}
+
+	}
+}
 
 double IRKStep( double x0, double y0, double h, F1 f, const double* A, const double* b, const double* c, const int s) {
 
@@ -766,7 +1195,7 @@ double IRKStep( double x0, double y0, double h, F1 f, const double* A, const dou
 	
 }
 
-double RadoIIA3(double x0, double y0, double h, F1 f) {
+double RadoIIA3Scal(double x0, double y0, double h, F1 f) {
 
 	const int s = 2;
 
@@ -779,6 +1208,137 @@ double RadoIIA3(double x0, double y0, double h, F1 f) {
 
 	return IRKStep(x0, y0, h, f, A, b, c, s);
 
+}
+
+double RadoIA3Scal(double x0, double y0, double h, F1 f) {
+
+	const int s = 2;
+
+	const double* A = new double[4] {1.0 / 4, -1.0 / 4, 1.0 / 4, 5.0 / 12};
+
+	const double* b = new double[2] {1.0 / 4, 3.0 / 4};
+
+	const double* c = new double[2] {0.0, 2.0 / 3};
+
+
+	return IRKStep(x0, y0, h, f, A, b, c, s);
+
+}
+
+void RadoIIA3Arr(const double x0, const double x1,const double* y0, double* res,const ui n,const double h, F1System &f) {
+
+	const int s = 2;
+
+	const double* A = new double[4] {5.0 / 12, -1.0 / 12, 3.0 / 4, 1.0 / 4};
+
+	const double* b = new double[2] {3.0 / 4, 1.0 / 4};
+
+	const double* c = new double[2] {1.0 / 3, 1.0};
+
+	IRKSystemArr(x0, x1, y0, res, n, h, A, b, c, s, f);
+
+}
+
+void RadoIIA5Arr(const double x0, const double x1, const double* y0, double* res, const ui n, const double h, F1System& f) {
+
+	const int s = 3;
+
+	const double* A = new double[9] {(88.0 - 7.0 * std::sqrt(6.0)) / 360.0,		 (296.0 - 169.0 * std::sqrt(6.0)) / 1800.0,	 (-2.0 + 3.0 * std::sqrt(6.0)) / 225.0,
+									 (296.0 + 169.0 * std::sqrt(6.0)) / 1800.0,	 (88.0 + 7.0 * std::sqrt(6.0)) / 360.0,		 (-2.0 - 3.0 * std::sqrt(6.0)) / 225.0,
+									 (16.0 - std::sqrt(6.0)) / 36.0,			 (16.0 + std::sqrt(6.0)) / 36.0,			 (1.0) / 9.0};
+
+	const double* b = new double[3] {(16.0 - std::sqrt(6.0)) / 36.0, (16.0 + std::sqrt(6.0)) / 36.0, 1.0 / 9.0};
+
+	const double* c = new double[3] {(4.0 - std::sqrt(6.0)) / 10.0, (4.0 + std::sqrt(6.0)) / 10.0, 1.0};
+
+	IRKSystemArr(x0, x1, y0, res, n, h, A, b, c, s, f);
+
+}
+
+
+void RadoIA3Arr(const double x0, const double x1, const double* y0, double* res, const ui n, const double h, F1System& f) {
+
+	const int s = 2;
+
+	const double* A = new double[4] {1.0 / 4, -1.0 / 4, 1.0 / 4, 5.0 / 12};
+
+	const double* b = new double[2] {1.0 / 4, 3.0 / 4};
+
+	const double* c = new double[2] {0.0, 2.0 / 3};
+
+	IRKSystemArr(x0, x1, y0, res, n, h, A, b, c, s, f);
+
+}
+
+F1System BuildFunctions(const SystemTask& task, double* res)
+{
+	std::vector<std::unique_ptr<CompiledFunction>> funcs;
+
+	funcs.reserve(task.n);
+
+	for (size_t i = 0; i < task.n; ++i)
+	{
+		if (task.scal_count[i] == 0) {
+			if (task.vec_count[i] == 0) {
+				funcs.push_back(std::make_unique<CompiledFunction>(
+					task.f[i],
+					res,
+					task.n,
+					nullptr,
+					nullptr,
+					task.scal_count[i],
+					nullptr,
+					nullptr,
+					nullptr,
+					task.vec_count[i]));
+			}
+			else {
+				funcs.push_back(std::make_unique<CompiledFunction>(
+					task.f[i],
+					res,
+					task.n,
+					nullptr,
+					nullptr,
+					task.scal_count[i],
+					task.vec_consts[i],
+					task.vec_lengts[i],
+					task.vec_names[i],
+					task.vec_count[i]));
+			}
+		}
+		else {
+
+			if (task.vec_count[i] == 0) {
+				funcs.push_back(std::make_unique<CompiledFunction>(
+					task.f[i],
+					res,
+					task.n,
+					task.scal_consts[i],
+					task.scal_names[i],
+					task.scal_count[i],
+					nullptr,
+					nullptr,
+					nullptr,
+					task.vec_count[i]));
+			}
+			else {
+				funcs.push_back(std::make_unique<CompiledFunction>(
+					task.f[i],
+					res,
+					task.n,
+					task.scal_consts[i],
+					task.scal_names[i],
+					task.scal_count[i],
+					task.vec_consts[i],
+					task.vec_lengts[i],
+					task.vec_names[i],
+					task.vec_count[i]));
+			}
+
+		}
+	}
+
+	return funcs;
 }
 
 extern "C" {
@@ -820,13 +1380,13 @@ extern "C" {
 		case BackEuler:
 			stepF = &BackEulerStep;
 			break;
-		case RadoIIA:
+		/*case RadoIIA3:
 			MemoryTmp::initArr1(2);
 			MemoryTmp::initArr2(2);
 			MemoryTmp::initArr3(2);
 			MemoryTmp::initMatrix1(2);
-			stepF = &RadoIIA3;
-			break;
+			stepF = &RadoIIA3Scal;
+			break;*/
 		default:
 			return -1;
 			break;
@@ -1126,13 +1686,13 @@ extern "C" {
 		case BackEuler:
 			stepF = &BackEulerStep;
 			break;
-		case RadoIIA:
+		/*case RadoIIA3:
 			MemoryTmp::initArr1(2);
 			MemoryTmp::initArr2(2);
 			MemoryTmp::initArr3(2);
 			MemoryTmp::initMatrix1(2);
-			stepF = &RadoIIA3;
-			break;
+			stepF = &RadoIIA3Scal;
+			break;*/
 		default:
 
 			return -1;
@@ -1202,9 +1762,12 @@ extern "C" {
 		}
 		}
 
+		F1System system = std::move(BuildFunctions(task, res));
+
+
 		while (tNow + task.h < task.t1) {
 
-			stepF(tNow, res, yStep, task.n, task.h, task.f);
+			stepF(tNow, res, yStep, task.n, task.h, system);
 			for (ui i = 0; i < task.n; i++) {
 				res[i] += yStep[i];
 			}
@@ -1213,7 +1776,7 @@ extern "C" {
 			k++;
 		}
 
-		stepF(tNow, res, yStep, task.n, task.t1 - tNow, task.f);
+		stepF(tNow, res, yStep, task.n, task.t1 - tNow, system);
 		for (ui i = 0; i < task.n; i++) {
 			res[i] += yStep[i];
 		}
@@ -1237,6 +1800,8 @@ extern "C" {
 
 		StepSystemF stepF;
 
+		F1System system = BuildFunctions(task, res);
+
 		switch (task.method)
 		{
 		case Euler: {
@@ -1259,13 +1824,38 @@ extern "C" {
 		}
 		case BackEuler: {
 
-			MemoryTmp::initArr1(task.n);
+			/*MemoryTmp::initArr1(task.n);
 			MemoryTmp::initArr2(task.n);
 			MemoryTmp::initArr3(task.n);
 			MemoryTmp::initArrUI1(task.n);
 			MemoryTmp::initMatrix1(task.n);
 			MemoryTmp::initMatrix2(task.n);
-			stepF = &BackEulerSystemStep;
+			stepF = &BackEulerSystemStep;*/
+
+			F1System system = BuildFunctions(task, res);
+
+			BackEulerSystemArr(task.t0, task.t1, task.y0, res, task.n, task.h,system);
+
+			return 0;
+
+			break;
+		}
+		case RadoIIA3: {
+			RadoIIA3Arr(task.t0, task.t1, task.y0, res, task.n, task.h, system);
+			return 0;
+
+			break;
+		}
+		case RadoIA3: {
+			RadoIA3Arr(task.t0, task.t1, task.y0, res, task.n, task.h, system);
+			return 0;
+
+			break;
+		}
+		case RadoIIA5: {
+			RadoIIA5Arr(task.t0, task.t1, task.y0, res, task.n, task.h, system);
+			return 0;
+
 			break;
 		}
 		default:
@@ -1273,10 +1863,12 @@ extern "C" {
 			break;
 		}
 
+		
+
 
 		while (tNow + task.h < task.t1) {
 
-			stepF(tNow, res + (k - 1) * task.n, yStep, task.n, task.h, task.f);
+			stepF(tNow, res + (k - 1) * task.n, yStep, task.n, task.h, system);
 			for (ui i = 0; i < task.n; i++) {
 				res[k * task.n + i] = res[(k - 1) * task.n + i] + yStep[i];
 			}
@@ -1285,7 +1877,7 @@ extern "C" {
 			k++;
 		}
 
-		stepF(tNow, res + (k - 1) * task.n, yStep, task.n, task.t1 - tNow, task.f);
+		stepF(tNow, res + (k - 1) * task.n, yStep, task.n, task.t1 - tNow, system);
 		for (ui i = 0; i < task.n; i++) {
 			res[k * task.n + i] = res[(k - 1) * task.n + i] + yStep[i];
 		}
